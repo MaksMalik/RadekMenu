@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { Sparkles, ShoppingCart, CalendarDays, Flame } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { FoodusLogo } from './FoodusLogo';
 
 const features = [
   { icon: <CalendarDays size={16} className="text-emerald-500" />, text: 'Kalendarz posiłków z heatmapą', tint: 'bg-emerald-50' },
@@ -29,19 +28,20 @@ export function LoginScreen() {
         <div className="flex flex-col items-center gap-4 mb-6">
           <motion.img
             src="/foodus-logo.png"
-            alt="Fooduś"
+            alt="Smakołysz"
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.1 }}
             className="w-24 h-24 rounded-3xl shadow-xl shadow-emerald-300/40"
           />
-          <motion.div
+          <motion.h1
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
+            className="text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent"
           >
-            <FoodusLogo size="lg" />
-          </motion.div>
+            Smakołysz
+          </motion.h1>
         </div>
 
         <motion.p

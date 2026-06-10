@@ -1,4 +1,4 @@
-# Fooduś — Inteligentny Planer Diety
+# Smakołysz — Inteligentny Planer Diety
 
 Premium SaaS-style aplikacja do planowania diety i treningu (14-dniowy planer) z generowaniem posiłków przez AI (Google Gemini). Zbudowana w React + TypeScript + Vite + Tailwind + Framer Motion. Logowanie przez Google, dane synchronizowane w Firebase Firestore.
 

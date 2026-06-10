@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { Undo2, Settings, LogOut } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useAuth } from '../context/AuthContext';
-import { FoodusLogo } from './FoodusLogo';
 
 interface HeaderProps {
   onProfileOpen: () => void;
@@ -17,8 +16,10 @@ export function Header({ onProfileOpen }: HeaderProps) {
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <img src="/foodus-logo.png" alt="Fooduś" className="w-10 h-10 rounded-xl" />
-          <FoodusLogo size="sm" />
+          <img src="/foodus-logo.png" alt="Smakołysz" className="w-10 h-10 rounded-xl" />
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent">
+            Smakołysz
+          </h1>
         </div>
 
         <div className="flex items-center gap-1.5">

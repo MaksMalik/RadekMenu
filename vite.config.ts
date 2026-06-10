@@ -15,8 +15,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
       },
       manifest: {
-        name: 'Fooduś — Planer Diety',
-        short_name: 'Fooduś',
+        name: 'Smakołysz — Planer Diety',
+        short_name: 'Smakołysz',
         description: 'Inteligentny planer diety z AI — planuj posiłki, śledź makroskładniki, generuj listy zakupów.',
         theme_color: '#10b981',
         background_color: '#ffffff',
