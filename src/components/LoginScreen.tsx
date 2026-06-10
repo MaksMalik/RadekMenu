@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { Salad, Sparkles, ShoppingCart, CalendarDays, Flame } from 'lucide-react';
+import { Sparkles, ShoppingCart, CalendarDays, Flame } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { FoodusLogo } from './FoodusLogo';
 
 const features = [
   { icon: <CalendarDays size={16} className="text-emerald-500" />, text: 'Kalendarz posiłków z heatmapą', tint: 'bg-emerald-50' },
@@ -27,23 +28,14 @@ export function LoginScreen() {
         {/* Hero logo */}
         <div className="flex justify-center mb-6">
           <motion.div
-            initial={{ scale: 0.6, rotate: -8, opacity: 0 }}
-            animate={{ scale: 1, rotate: 0, opacity: 1 }}
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.1 }}
-            className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-300/60"
           >
-            <Salad size={36} className="text-white" />
+            <FoodusLogo size="lg" />
           </motion.div>
         </div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-3xl font-extrabold text-center mb-2 bg-gradient-to-r from-emerald-600 to-sky-600 bg-clip-text text-transparent"
-        >
-          Silhouette Planner
-        </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

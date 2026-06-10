@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { Undo2, Salad, Settings, LogOut } from 'lucide-react';
+import { Undo2, Settings, LogOut } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useAuth } from '../context/AuthContext';
+import { FoodusLogo } from './FoodusLogo';
 
 interface HeaderProps {
   onProfileOpen: () => void;
@@ -16,15 +17,7 @@ export function Header({ onProfileOpen }: HeaderProps) {
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-md shadow-emerald-200/50">
-            <Salad size={18} className="text-white" />
-          </div>
-          <div className="leading-tight">
-            <h1 className="text-base sm:text-lg font-bold text-slate-800 tracking-tight">
-              Silhouette Planner
-            </h1>
-            <p className="text-[11px] text-slate-400 hidden sm:block">Twój plan rekompozycji</p>
-          </div>
+          <FoodusLogo size="sm" />
         </div>
 
         <div className="flex items-center gap-1.5">
