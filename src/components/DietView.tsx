@@ -50,13 +50,15 @@ export function DietView() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [dayTab, setDayTab] = useState<DayTab>('posilki');
-  const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const moreRef = useRef<HTMLDivElement>(null);
 
   const dayShoppingList = useMemo(
     () => generateShoppingList(currentDayPlan ? [currentDayPlan] : []),
     [currentDayPlan]
   );
+
+  const boughtIngredients = currentDayPlan?.boughtIngredients ?? [];
+  const boughtCount = dayShoppingList.filter(item => boughtIngredients.includes(item)).length;
 
   const dayCookingGuide = useMemo<CookingGuideEntry[]>(
     () =>
@@ -67,12 +69,7 @@ export function DietView() {
   );
 
   const toggleIngredient = (item: string) => {
-    setCheckedIngredients(prev => {
-      const next = new Set(prev);
-      if (next.has(item)) next.delete(item);
-      else next.add(item);
-      return next;
-    });
+    dispatch({ type: 'TOGGLE_BOUGHT', date: selectedDate, ingredient: item });
   };
 
   useEffect(() => {
@@ -259,33 +256,34 @@ export function DietView() {
                 <>
                   <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
                     <span className="text-sm text-slate-500">
-                      {checkedIngredients.size} / {dayShoppingList.length} zaznaczono
+                      {boughtCount} / {dayShoppingList.length} kupiono
                     </span>
                   </div>
                   <ul className="space-y-1.5">
-                    {dayShoppingList.map(item => (
-                      <li key={item}>
-                        <button
-                          onClick={() => toggleIngredient(item)}
-                          className="flex items-center gap-2 w-full text-left py-1 px-2 rounded-lg hover:bg-slate-50 transition-colors"
-                        >
-                          {checkedIngredients.has(item) ? (
-                            <CheckSquare className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                          ) : (
-                            <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                          )}
-                          <span
-                            className={`text-sm ${
-                              checkedIngredients.has(item)
-                                ? 'text-slate-400 line-through'
-                                : 'text-slate-700'
-                            }`}
+                    {dayShoppingList.map(item => {
+                      const bought = boughtIngredients.includes(item);
+                      return (
+                        <li key={item}>
+                          <button
+                            onClick={() => toggleIngredient(item)}
+                            className="flex items-center gap-2 w-full text-left py-1 px-2 rounded-lg hover:bg-slate-50 transition-colors"
                           >
-                            {item}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
+                            {bought ? (
+                              <CheckSquare className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                            ) : (
+                              <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                            )}
+                            <span
+                              className={`text-sm ${
+                                bought ? 'text-slate-400 line-through' : 'text-slate-700'
+                              }`}
+                            >
+                              {item}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </>
               )}

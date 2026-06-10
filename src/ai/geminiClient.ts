@@ -16,13 +16,14 @@ export class GeminiClient {
   async swapMeal(
     currentMeal: Meal,
     userProfile: UserProfile,
-    userComment?: string
+    userComment?: string,
+    sameDayTitles?: string[]
   ): Promise<GeminiResponse> {
     if (!this.apiKey) {
       return { success: false, error: 'Brak klucza API Gemini.' };
     }
 
-    const prompt = buildSwapPrompt(currentMeal, userProfile, userComment);
+    const prompt = buildSwapPrompt(currentMeal, userProfile, userComment, sameDayTitles);
 
     try {
       const text = await this.callGemini(prompt);
@@ -279,10 +280,11 @@ export async function swapMeal(
   currentMeal: Meal,
   userProfile: UserProfile,
   apiKey: string,
-  userComment?: string
+  userComment?: string,
+  sameDayTitles?: string[]
 ): Promise<GeminiResponse> {
   const client = new GeminiClient(apiKey || DEFAULT_GEMINI_KEY);
-  return client.swapMeal(currentMeal, userProfile, userComment);
+  return client.swapMeal(currentMeal, userProfile, userComment, sameDayTitles);
 }
 
 export async function generateFullDay(

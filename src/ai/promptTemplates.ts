@@ -3,7 +3,8 @@ import type { Meal, MealType, UserProfile, DayPlan } from '../types';
 export function buildSwapPrompt(
   meal: Meal,
   profile: UserProfile,
-  comment?: string
+  comment?: string,
+  sameDayTitles?: string[]
 ): string {
   const targetKcalMin = Math.round(meal.kcal * 0.9);
   const targetKcalMax = Math.round(meal.kcal * 1.1);
@@ -34,6 +35,11 @@ export function buildSwapPrompt(
     ? `\n\nDodatkowe uwagi użytkownika: ${comment}`
     : '';
 
+  const otherSameDay = (sameDayTitles ?? []).filter(t => t && t !== meal.title);
+  const sameDaySection = otherSameDay.length > 0
+    ? `\n\nINNE posiłki zaplanowane na ten sam dzień (NIE proponuj dania, które się z nimi pokrywa lub powtarza — zadbaj o różnorodność dnia):\n${otherSameDay.map(t => `- ${t}`).join('\n')}`
+    : '';
+
   return `Jesteś polskim asystentem dietetycznym specjalizującym się w planowaniu posiłków dla rekompozycji sylwetki.
 
 Zadanie: Wymień poniższy posiłek na alternatywę o zbliżonych makroskładnikach.
@@ -45,7 +51,7 @@ Docelowe makroskładniki (±10% od oryginału):
 - Kalorie: ${targetKcalMin}–${targetKcalMax} kcal
 - Białko: ${targetProteinMin}–${targetProteinMax} g
 - Węglowodany: ${targetCarbsMin}–${targetCarbsMax} g
-- Tłuszcze: ${targetFatsMin}–${targetFatsMax} g${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${commentSection}
+- Tłuszcze: ${targetFatsMin}–${targetFatsMax} g${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${commentSection}${sameDaySection}
 
 Odpowiedz WYŁĄCZNIE poprawnym obiektem JSON (bez bloków markdown, bez dodatkowego tekstu) w następującym formacie:
 {

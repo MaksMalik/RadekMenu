@@ -22,7 +22,12 @@ export function SwapMealModal({ meal, date, isOpen, onClose }: SwapMealModalProp
   const handleSwap = async () => {
     setLoading(true);
 
-    const result = await swapMeal(meal, state.userProfile, state.geminiApiKey, comment || undefined);
+    const sameDayTitles = state.dayPlans
+      .find(dp => dp.date === date)?.meals
+      .filter(m => m.id !== meal.id)
+      .map(m => m.title) ?? [];
+
+    const result = await swapMeal(meal, state.userProfile, state.geminiApiKey, comment || undefined, sameDayTitles);
 
     if (result.success && result.data && !Array.isArray(result.data)) {
       dispatch({ type: 'REPLACE_MEAL', date, mealId: meal.id, newMeal: result.data });

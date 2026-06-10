@@ -17,6 +17,7 @@ export interface Meal {
 export interface DayPlan {
   date: string; // ISO date 'YYYY-MM-DD'
   meals: Meal[];
+  boughtIngredients?: string[]; // shopping items checked off for this day
 }
 
 export interface MacroTargets {
@@ -58,6 +59,7 @@ export interface StorageInterface {
 export type AppAction =
   | { type: 'SELECT_DATE'; date: string }
   | { type: 'TOGGLE_EATEN'; date: string; mealId: string }
+  | { type: 'TOGGLE_BOUGHT'; date: string; ingredient: string }
   | { type: 'UPDATE_MEAL'; date: string; mealId: string; meal: Meal }
   | { type: 'DELETE_MEAL'; date: string; mealId: string }
   | { type: 'REPLACE_MEAL'; date: string; mealId: string; newMeal: Meal }

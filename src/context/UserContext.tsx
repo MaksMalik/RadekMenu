@@ -61,6 +61,21 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, dayPlans };
     }
 
+    case 'TOGGLE_BOUGHT': {
+      // Toggle a shopping ingredient as bought for a given day, without pruning.
+      // Days that have a shopping list always have meals, so we only update
+      // existing plans here (no insert needed for an empty day).
+      const dayPlans = state.dayPlans.map(dp => {
+        if (dp.date !== action.date) return dp;
+        const current = dp.boughtIngredients ?? [];
+        const bought = current.includes(action.ingredient)
+          ? current.filter(i => i !== action.ingredient)
+          : [...current, action.ingredient];
+        return { ...dp, boughtIngredients: bought };
+      });
+      return { ...state, dayPlans };
+    }
+
     case 'UPDATE_MEAL': {
       const historyStack = pushHistory(state);
       const dayPlans = upsertDay(state, action.date, meals =>
