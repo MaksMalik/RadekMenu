@@ -141,25 +141,34 @@ export function DietView() {
       />
 
       {/* Meal Cards */}
-      <div className="space-y-3">
-        {meals.length === 0 ? (
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center">
-            <p className="text-slate-400 text-sm">Brak posiłków na ten dzień. Wygeneruj plan przez AI lub dodaj posiłek ręcznie.</p>
-          </div>
-        ) : (
-          meals.map(meal => (
-            <MealCard
-              key={meal.id}
-              meal={meal}
-              onToggleEaten={() => dispatch({ type: 'TOGGLE_EATEN', date: selectedDate, mealId: meal.id })}
-              onEdit={() => setEditingMeal(meal)}
-              onSwap={() => setSwappingMeal(meal)}
-              onDelete={() => setDeletingMeal(meal)}
-              onCopy={() => setCopyingMeal(meal)}
-            />
-          ))
-        )}
-      </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={selectedDate}
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -12 }}
+          transition={{ duration: 0.2 }}
+          className="space-y-3"
+        >
+          {meals.length === 0 ? (
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center">
+              <p className="text-slate-400 text-sm">Brak posiłków na ten dzień. Wygeneruj plan przez AI lub dodaj posiłek ręcznie.</p>
+            </div>
+          ) : (
+            meals.map(meal => (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                onToggleEaten={() => dispatch({ type: 'TOGGLE_EATEN', date: selectedDate, mealId: meal.id })}
+                onEdit={() => setEditingMeal(meal)}
+                onSwap={() => setSwappingMeal(meal)}
+                onDelete={() => setDeletingMeal(meal)}
+                onCopy={() => setCopyingMeal(meal)}
+              />
+            ))
+          )}
+        </motion.div>
+      </AnimatePresence>
 
       {/* Modals */}
       {editingMeal && (

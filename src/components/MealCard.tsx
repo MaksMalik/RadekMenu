@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Flame, Beef, Wheat, Droplet, Check, Pencil, RefreshCw, Trash2, CopyPlus,
+  Flame, Beef, Wheat, Droplet, Pencil, RefreshCw, Trash2, CopyPlus,
   ChevronDown, Lightbulb,
 } from 'lucide-react';
 import type { Meal } from '../types';
@@ -28,6 +28,7 @@ function typeBadge(type: string): string {
 
 export function MealCard({ meal, onToggleEaten, onEdit, onSwap, onDelete, onCopy }: MealCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const hasInstruction = meal.instruction.trim().length > 0;
 
   return (
     <motion.div
@@ -45,28 +46,45 @@ export function MealCard({ meal, onToggleEaten, onEdit, onSwap, onDelete, onCopy
         className="w-full flex items-center gap-3 p-4 text-left"
       >
         {/* Eaten checkbox */}
-        <span
+        <motion.span
           role="button"
           tabIndex={0}
           onClick={(e) => { e.stopPropagation(); onToggleEaten(); }}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onToggleEaten(); } }}
-          className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors cursor-pointer ${
-            meal.eaten
-              ? 'bg-emerald-500 text-white'
-              : 'bg-slate-100 text-transparent hover:bg-emerald-100'
-          }`}
+          animate={{ backgroundColor: meal.eaten ? '#10b981' : '#f1f5f9' }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 cursor-pointer"
         >
-          <Check size={15} strokeWidth={3} />
-        </span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+            <motion.path
+              d="M20 6 9 17l-5-5"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: meal.eaten ? 1 : 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            />
+          </svg>
+        </motion.span>
 
         {/* Title + type */}
         <div className="flex-1 min-w-0">
           <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold mb-1 ${typeBadge(meal.type)}`}>
             {meal.type}
           </span>
-          <h3 className={`text-sm font-bold leading-snug ${meal.eaten ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-            {meal.title}
-          </h3>
+          <motion.h3
+            animate={{ color: meal.eaten ? '#94a3b8' : '#1e293b' }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="text-sm font-bold leading-snug"
+          >
+            <span className="relative inline-block">
+              {meal.title}
+              <motion.div
+                initial={false}
+                animate={{ width: meal.eaten ? '100%' : '0%' }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="absolute left-0 top-1/2 h-0.5 bg-slate-400"
+              />
+            </span>
+          </motion.h3>
         </div>
 
         {/* Compact macros */}
@@ -106,7 +124,7 @@ export function MealCard({ meal, onToggleEaten, onEdit, onSwap, onDelete, onCopy
                 <MacroPill icon={<Droplet size={12} />} value={`Tłuszcze ${meal.fats}g`} color="text-violet-600 bg-violet-50" />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={`grid grid-cols-1 gap-4 ${hasInstruction ? 'md:grid-cols-2' : ''}`}>
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Składniki</p>
                   <ul className="space-y-1.5">
@@ -118,12 +136,14 @@ export function MealCard({ meal, onToggleEaten, onEdit, onSwap, onDelete, onCopy
                     ))}
                   </ul>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Przygotowanie</p>
-                  <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-3.5 border border-slate-100">
-                    <p className="text-[13px] text-slate-600 italic leading-relaxed">{meal.instruction}</p>
+                {hasInstruction && (
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Przygotowanie</p>
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-3.5 border border-slate-100">
+                      <p className="text-[13px] text-slate-600 italic leading-relaxed">{meal.instruction}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {meal.tip && (

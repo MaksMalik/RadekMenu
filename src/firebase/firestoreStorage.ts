@@ -2,6 +2,8 @@ import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from './config';
 import type { AppState } from '../types';
 
+const SCHEMA_VERSION = 2;
+
 /**
  * Firestore-backed persistence for a logged-in user.
  * Each user's state is stored under `users/{uid}` document.
@@ -10,6 +12,15 @@ import type { AppState } from '../types';
 
 type PersistedState = Omit<AppState, 'historyStack' | 'clipboard'>;
 
+function isCompatible(data: PersistedState | undefined): boolean {
+  return (
+    !!data &&
+    data.schemaVersion === SCHEMA_VERSION &&
+    typeof data.selectedDate === 'string' &&
+    Array.isArray(data.dayPlans)
+  );
+}
+
 export async function readUserState(uid: string): Promise<AppState | null> {
   try {
     const ref = doc(db, 'users', uid);
@@ -17,7 +28,7 @@ export async function readUserState(uid: string): Promise<AppState | null> {
     if (!snap.exists()) return null;
 
     const data = snap.data() as PersistedState;
-    if (typeof data.schemaVersion !== 'number') return null;
+    if (!isCompatible(data)) return null;
 
     return { ...data, historyStack: [], clipboard: null };
   } catch (e) {
@@ -49,7 +60,7 @@ export function subscribeToUserState(
       return;
     }
     const data = snap.data() as PersistedState;
-    if (typeof data.schemaVersion !== 'number') {
+    if (!isCompatible(data)) {
       callback(null);
       return;
     }

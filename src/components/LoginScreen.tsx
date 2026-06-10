@@ -1,60 +1,94 @@
 import { motion } from 'framer-motion';
-import { Salad, Sparkles, ShoppingCart } from 'lucide-react';
+import { Salad, Sparkles, ShoppingCart, CalendarDays, Flame } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+
+const features = [
+  { icon: <CalendarDays size={16} className="text-emerald-500" />, text: 'Kalendarz posiłków z heatmapą', tint: 'bg-emerald-50' },
+  { icon: <Sparkles size={16} className="text-violet-500" />, text: 'Generowanie posiłków przez AI (Gemini)', tint: 'bg-violet-50' },
+  { icon: <Flame size={16} className="text-amber-500" />, text: 'Śledzenie kalorii i makro', tint: 'bg-amber-50' },
+  { icon: <ShoppingCart size={16} className="text-sky-500" />, text: 'Lista zakupów i przepisy', tint: 'bg-sky-50' },
+];
 
 export function LoginScreen() {
   const { signInWithGoogle } = useAuth();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-slate-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-100 via-white to-sky-100 px-4 py-10 relative overflow-hidden">
+      {/* Decorative gradient blobs */}
+      <div className="pointer-events-none absolute -top-24 -left-24 w-80 h-80 rounded-full bg-emerald-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-sky-200/40 blur-3xl" />
+
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-100 p-8 sm:p-10"
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="w-full max-w-md bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl shadow-emerald-900/10 border border-white/60 p-8 sm:p-10 relative z-10"
       >
+        {/* Hero logo */}
         <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-200">
-            <Salad size={28} className="text-white" />
-          </div>
+          <motion.div
+            initial={{ scale: 0.6, rotate: -8, opacity: 0 }}
+            animate={{ scale: 1, rotate: 0, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.1 }}
+            className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-300/60"
+          >
+            <Salad size={36} className="text-white" />
+          </motion.div>
         </div>
 
-        <h1 className="text-2xl font-bold text-slate-800 text-center mb-2">
+        <motion.h1
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-3xl font-extrabold text-center mb-2 bg-gradient-to-r from-emerald-600 to-sky-600 bg-clip-text text-transparent"
+        >
           Silhouette Planner
-        </h1>
-        <p className="text-sm text-slate-500 text-center mb-8">
-          Twój osobisty asystent rekompozycji sylwetki — 14-dniowy plan diety z AI.
-        </p>
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
+          className="text-sm text-slate-500 text-center mb-8 leading-relaxed"
+        >
+          Inteligentny planer diety z kalendarzem, sterowany przez AI — planuj posiłki i śledź makroskładniki każdego dnia.
+        </motion.p>
 
+        {/* Feature highlights */}
         <div className="space-y-2.5 mb-8">
-          <Feature icon={<Sparkles size={15} className="text-emerald-500" />} text="Generowanie posiłków przez AI" />
-          <Feature icon={<Salad size={15} className="text-amber-500" />} text="14-dniowy planer diety" />
-          <Feature icon={<ShoppingCart size={15} className="text-sky-500" />} text="Lista zakupów i przepisy" />
+          {features.map((f, i) => (
+            <motion.div
+              key={f.text}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.36 + i * 0.09 }}
+              className="flex items-center gap-3 px-3 py-2.5 bg-white/80 rounded-2xl border border-slate-100 shadow-sm"
+            >
+              <div className={`w-9 h-9 rounded-xl ${f.tint} flex items-center justify-center flex-shrink-0`}>
+                {f.icon}
+              </div>
+              <span className="text-sm font-medium text-slate-700">{f.text}</span>
+            </motion.div>
+          ))}
         </div>
 
         {/* Simple redirect-based Google login — no popup needed */}
-        <button
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.76 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={signInWithGoogle}
-          className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-white border border-slate-200 rounded-xl font-medium text-slate-700 shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
+          className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-semibold text-slate-700 shadow-md hover:shadow-lg hover:border-slate-300 transition-all"
         >
           <GoogleIcon />
           Kontynuuj z Google
-        </button>
+        </motion.button>
 
         <p className="text-[11px] text-slate-400 text-center mt-6">
           Twoje dane są bezpiecznie zapisywane w chmurze.
         </p>
       </motion.div>
-    </div>
-  );
-}
-
-function Feature({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return (
-    <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-xl">
-      <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center shadow-sm flex-shrink-0">
-        {icon}
-      </div>
-      <span className="text-sm text-slate-600">{text}</span>
     </div>
   );
 }

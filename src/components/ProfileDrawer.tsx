@@ -14,6 +14,9 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
   const [newDislike, setNewDislike] = useState('');
   const [newPreferred, setNewPreferred] = useState('');
+  const [newEquipment, setNewEquipment] = useState('');
+
+  const chipTransition = { type: 'spring', stiffness: 500, damping: 30 } as const;
 
   const addDislike = () => {
     const trimmed = newDislike.trim();
@@ -48,6 +51,24 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
     dispatch({
       type: 'UPDATE_PROFILE',
       profile: { preferredIngredients: userProfile.preferredIngredients.filter(i => i !== item) },
+    });
+  };
+
+  const addEquipment = () => {
+    const trimmed = newEquipment.trim();
+    if (trimmed && !userProfile.equipment.includes(trimmed)) {
+      dispatch({
+        type: 'UPDATE_PROFILE',
+        profile: { equipment: [...userProfile.equipment, trimmed] },
+      });
+      setNewEquipment('');
+    }
+  };
+
+  const removeEquipment = (item: string) => {
+    dispatch({
+      type: 'UPDATE_PROFILE',
+      profile: { equipment: userProfile.equipment.filter(i => i !== item) },
     });
   };
 
@@ -130,17 +151,24 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                  {userProfile.dislikedIngredients.map((item) => (
-                    <span
-                      key={item}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs"
-                    >
-                      {item}
-                      <button onClick={() => removeDislike(item)} className="hover:text-red-900">
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
+                  <AnimatePresence>
+                    {userProfile.dislikedIngredients.map((item) => (
+                      <motion.span
+                        key={item}
+                        layout
+                        initial={{ opacity: 0, scale: 0.6 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.6 }}
+                        transition={chipTransition}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs"
+                      >
+                        {item}
+                        <button onClick={() => removeDislike(item)} className="hover:text-red-900">
+                          <X size={12} />
+                        </button>
+                      </motion.span>
+                    ))}
+                  </AnimatePresence>
                 </div>
               </section>
 
@@ -166,17 +194,24 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                  {userProfile.preferredIngredients.map((item) => (
-                    <span
-                      key={item}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs"
-                    >
-                      {item}
-                      <button onClick={() => removePreferred(item)} className="hover:text-emerald-900">
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
+                  <AnimatePresence>
+                    {userProfile.preferredIngredients.map((item) => (
+                      <motion.span
+                        key={item}
+                        layout
+                        initial={{ opacity: 0, scale: 0.6 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.6 }}
+                        transition={chipTransition}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs"
+                      >
+                        {item}
+                        <button onClick={() => removePreferred(item)} className="hover:text-emerald-900">
+                          <X size={12} />
+                        </button>
+                      </motion.span>
+                    ))}
+                  </AnimatePresence>
                 </div>
               </section>
 
@@ -205,12 +240,41 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                 <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
                   Sprzęt
                 </h3>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={newEquipment}
+                    onChange={(e) => setNewEquipment(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addEquipment()}
+                    placeholder="Dodaj sprzęt..."
+                    className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+                  />
+                  <button
+                    onClick={addEquipment}
+                    className="p-2 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-colors"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {userProfile.equipment.map((eq) => (
-                    <span key={eq} className="px-3 py-1 bg-slate-100 rounded-full text-sm text-slate-600">
-                      {eq}
-                    </span>
-                  ))}
+                  <AnimatePresence>
+                    {userProfile.equipment.map((eq) => (
+                      <motion.span
+                        key={eq}
+                        layout
+                        initial={{ opacity: 0, scale: 0.6 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.6 }}
+                        transition={chipTransition}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 rounded-full text-sm text-slate-600"
+                      >
+                        {eq}
+                        <button onClick={() => removeEquipment(eq)} className="hover:text-slate-900">
+                          <X size={12} />
+                        </button>
+                      </motion.span>
+                    ))}
+                  </AnimatePresence>
                 </div>
               </section>
 
