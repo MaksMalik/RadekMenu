@@ -26,11 +26,19 @@ export function LoginScreen() {
         className="w-full max-w-md bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl shadow-emerald-900/10 border border-white/60 p-8 sm:p-10 relative z-10"
       >
         {/* Hero logo */}
-        <div className="flex justify-center mb-6">
-          <motion.div
+        <div className="flex flex-col items-center gap-4 mb-6">
+          <motion.img
+            src="/foodus-logo.png"
+            alt="Fooduś"
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.1 }}
+            className="w-24 h-24 rounded-3xl shadow-xl shadow-emerald-300/40"
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
           >
             <FoodusLogo size="lg" />
           </motion.div>
