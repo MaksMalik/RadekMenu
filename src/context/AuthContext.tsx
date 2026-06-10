@@ -1,47 +1,53 @@
-import { createContext, useContext, useEffect, useState, useRef, useCallback, type ReactNode } from 'react';
-import { GoogleAuthProvider, signInWithCredential, signOut as fbSignOut, onAuthStateChanged, type User } from 'firebase/auth';
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import {
+  GoogleAuthProvider,
+  signInWithCredential,
+  signOut as fbSignOut,
+  onAuthStateChanged,
+  type User,
+} from 'firebase/auth';
 import { auth } from '../firebase/config';
 
 const GOOGLE_CLIENT_ID = '364237142982-1p71dgug0fajna11l1cilrcp0pkccetp.apps.googleusercontent.com';
 
-interface GISAccountsId {
-  initialize: (config: {
-    client_id: string;
-    callback: (response: { credential: string }) => void;
-    auto_select?: boolean;
-  }) => void;
-  renderButton: (element: HTMLElement, config: {
-    theme: string;
-    size: string;
-    width: number;
-    text: string;
-    locale: string;
-  }) => void;
-  disableAutoSelect: () => void;
-  prompt: () => void;
-}
-
-interface GoogleGlobal {
-  google?: {
-    accounts?: {
-      id?: GISAccountsId;
-    };
-  };
-}
-
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  signInWithGoogle: () => void;
   signOut: () => Promise<void>;
-  renderGoogleButton: (element: HTMLElement) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function generateNonce(): string {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const gsiInitialized = useRef(false);
+
+  // Handle OAuth callback — Google redirects back with id_token in hash
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('id_token=')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const idToken = params.get('id_token');
+      if (idToken) {
+        const credential = GoogleAuthProvider.credential(idToken);
+        signInWithCredential(auth, credential)
+          .then(() => {
+            // Clean up URL
+            window.history.replaceState(null, '', window.location.pathname);
+          })
+          .catch((err) => {
+            console.error('[Auth] credential exchange failed:', err);
+          });
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -51,56 +57,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub;
   }, []);
 
-  const handleCredentialResponse = useCallback(async (response: { credential: string }) => {
-    const credential = GoogleAuthProvider.credential(response.credential);
-    await signInWithCredential(auth, credential);
-  }, []);
-
-  // Load GIS script
-  useEffect(() => {
-    if (gsiInitialized.current) return;
-
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      const g = (window as unknown as GoogleGlobal).google;
-      if (g?.accounts?.id) {
-        g.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleCredentialResponse,
-          auto_select: true,
-        });
-        gsiInitialized.current = true;
-      }
-    };
-    document.head.appendChild(script);
-  }, [handleCredentialResponse]);
-
-  const renderGoogleButton = useCallback((element: HTMLElement) => {
-    const g = (window as unknown as GoogleGlobal).google;
-    if (g?.accounts?.id) {
-      g.accounts.id.renderButton(element, {
-        theme: 'outline',
-        size: 'large',
-        width: 320,
-        text: 'continue_with',
-        locale: 'pl',
-      });
-    }
+  const signInWithGoogle = useCallback(() => {
+    // Manual OAuth 2.0 implicit flow — redirect to Google, come back with id_token in hash
+    const nonce = generateNonce();
+    const redirectUri = window.location.origin + window.location.pathname;
+    const params = new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: redirectUri,
+      response_type: 'id_token',
+      scope: 'openid email profile',
+      nonce: nonce,
+      prompt: 'select_account',
+    });
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }, []);
 
   const signOut = useCallback(async () => {
     await fbSignOut(auth);
-    const g = (window as unknown as GoogleGlobal).google;
-    if (g?.accounts?.id) {
-      g.accounts.id.disableAutoSelect();
-    }
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, renderGoogleButton }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );
