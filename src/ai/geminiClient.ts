@@ -50,11 +50,7 @@ export class GeminiClient {
       return { success: false, error: 'Brak klucza API Gemini.' };
     }
 
-    const simplifiedDays = existingDays
-      ?.filter(dp => dp.meals.length > 0)
-      .map(dp => ({ day: dp.day, meals: dp.meals.map(m => ({ title: m.title })) }));
-
-    const prompt = buildFullDayPrompt(userProfile, simplifiedDays);
+    const prompt = buildFullDayPrompt(userProfile, existingDays);
 
     try {
       const text = await this.callGemini(prompt);

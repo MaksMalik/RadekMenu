@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Target, Key, Plus, Trash2 } from 'lucide-react';
+import { X, Key, Plus } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 
 interface ProfileDrawerProps {
