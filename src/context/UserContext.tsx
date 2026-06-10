@@ -3,9 +3,9 @@ import type { AppState, AppAction, DayPlan } from '../types';
 import { localStorageAdapter } from '../storage/localStorageAdapter';
 import { getDefaultState } from '../data/seedData';
 import { subscribeToUserState, writeUserState } from '../firebase/firestoreStorage';
+import { useAuth } from './AuthContext';
 
 const MAX_HISTORY = 10;
-const SHARED_UID = 'shared';
 
 function pushHistory(state: AppState): DayPlan[][] {
   const snapshot = state.dayPlans.map(dp => ({
@@ -155,6 +155,9 @@ interface UserContextValue {
 const UserContext = createContext<UserContextValue | null>(null);
 
 export function UserProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const uid = user!.uid;
+
   const [state, dispatch] = useReducer(appReducer, undefined, () => {
     const saved = localStorageAdapter.read();
     return saved ?? getDefaultState();
@@ -165,14 +168,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // Subscribe to Firestore realtime updates
   useEffect(() => {
-    const unsub = subscribeToUserState(SHARED_UID, (remote) => {
+    const unsub = subscribeToUserState(uid, (remote) => {
       if (remote && !isLocalChange.current) {
         dispatch({ type: 'RESTORE_STATE', state: remote });
       }
       hasLoadedRemote.current = true;
     });
     return unsub;
-  }, []);
+  }, [uid]);
 
   // Persist locally always
   useEffect(() => {
@@ -184,7 +187,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!hasLoadedRemote.current) return;
     const t = setTimeout(() => {
       isLocalChange.current = true;
-      void writeUserState(SHARED_UID, state).finally(() => {
+      void writeUserState(uid, state).finally(() => {
         // Give Firestore snapshot time to echo back before accepting remote changes again
         setTimeout(() => {
           isLocalChange.current = false;
@@ -192,7 +195,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       });
     }, 1000);
     return () => clearTimeout(t);
-  }, [state]);
+  }, [state, uid]);
 
   return (
     <UserContext.Provider value={{ state, dispatch }}>

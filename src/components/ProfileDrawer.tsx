@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Key, Plus } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 
 interface ProfileDrawerProps {
@@ -10,7 +10,7 @@ interface ProfileDrawerProps {
 
 export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
   const { state, dispatch } = useUser();
-  const { userProfile, geminiApiKey } = state;
+  const { userProfile } = state;
 
   const [newDislike, setNewDislike] = useState('');
   const [newPreferred, setNewPreferred] = useState('');
@@ -194,22 +194,7 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                 </div>
               </section>
 
-              {/* API Key */}
-              <section>
-                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <Key size={14} /> Klucz API Gemini
-                </h3>
-                <input
-                  type="password"
-                  value={geminiApiKey}
-                  onChange={(e) => dispatch({ type: 'SET_API_KEY', key: e.target.value })}
-                  placeholder="Wklej klucz API..."
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 transition-all"
-                />
-                <p className="text-xs text-slate-400 mt-2">
-                  Klucz jest zapisywany lokalnie. Wymagany do funkcji AI.
-                </p>
-              </section>
+
             </div>
           </motion.aside>
         </>
