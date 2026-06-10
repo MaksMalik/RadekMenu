@@ -6,14 +6,14 @@ export function buildSwapPrompt(
   comment?: string,
   sameDayTitles?: string[]
 ): string {
-  const targetKcalMin = Math.round(meal.kcal * 0.9);
-  const targetKcalMax = Math.round(meal.kcal * 1.1);
-  const targetProteinMin = Math.round(meal.protein * 0.9);
-  const targetProteinMax = Math.round(meal.protein * 1.1);
-  const targetCarbsMin = Math.round(meal.carbs * 0.9);
-  const targetCarbsMax = Math.round(meal.carbs * 1.1);
-  const targetFatsMin = Math.round(meal.fats * 0.9);
-  const targetFatsMax = Math.round(meal.fats * 1.1);
+  const targetKcalMin = Math.round(meal.kcal * 0.85);
+  const targetKcalMax = Math.round(meal.kcal * 1.15);
+  const targetProteinMin = Math.round(meal.protein * 0.85);
+  const targetProteinMax = Math.round(meal.protein * 1.15);
+  const targetCarbsMin = Math.round(meal.carbs * 0.85);
+  const targetCarbsMax = Math.round(meal.carbs * 1.15);
+  const targetFatsMin = Math.round(meal.fats * 0.85);
+  const targetFatsMax = Math.round(meal.fats * 1.15);
 
   const dislikesSection = profile.dislikedIngredients.length > 0
     ? `\n\nBEZWZGLĘDNIE ZAKAZANE składniki (NIGDY nie używaj):\n${profile.dislikedIngredients.map(i => `- ${i}`).join('\n')}`
@@ -42,13 +42,15 @@ export function buildSwapPrompt(
 
   return `Jesteś polskim asystentem dietetycznym specjalizującym się w planowaniu posiłków dla rekompozycji sylwetki.
 
-Zadanie: Wymień poniższy posiłek na alternatywę o zbliżonych makroskładnikach.
+Zadanie: Wymień poniższy posiłek na alternatywę o ZBLIŻONYCH makroskładnikach.
 
 Aktualny posiłek do wymiany:
 ${JSON.stringify(meal, null, 2)}
 
-Docelowe makroskładniki (±10% od oryginału):
-- Kalorie: ${targetKcalMin}–${targetKcalMax} kcal
+KRYTYCZNIE WAŻNE — TWARDY LIMIT KALORII: nowy posiłek MUSI mieścić się w przedziale ${targetKcalMin}–${targetKcalMax} kcal (czyli ${meal.kcal} kcal ±15%). To jest BEZWZGLĘDNY wymóg — NIE WOLNO go przekroczyć ani zejść poniżej. Zanim podasz odpowiedź, sam policz kalorie składników i upewnij się, że suma mieści się w tym przedziale. Jeśli wychodzi poza zakres, popraw porcje/składniki aż się zmieści.
+
+Docelowe makroskładniki:
+- Kalorie: ${targetKcalMin}–${targetKcalMax} kcal (TWARDY LIMIT — obowiązkowy)
 - Białko: ${targetProteinMin}–${targetProteinMax} g
 - Węglowodany: ${targetCarbsMin}–${targetCarbsMax} g
 - Tłuszcze: ${targetFatsMin}–${targetFatsMax} g${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${commentSection}${sameDaySection}

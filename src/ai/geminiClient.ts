@@ -25,17 +25,46 @@ export class GeminiClient {
 
     const prompt = buildSwapPrompt(currentMeal, userProfile, userComment, sameDayTitles);
 
-    try {
-      const text = await this.callGemini(prompt);
-      const parsed = this.parseJsonResponse(text);
+    // Hard kcal constraint: new meal must stay within ±15% of the original.
+    const minKcal = currentMeal.kcal * 0.85;
+    const maxKcal = currentMeal.kcal * 1.15;
+    const MAX_ATTEMPTS = 3;
 
-      if (parsed && !Array.isArray(parsed) && this.validateMeal(parsed)) {
-        const meal: Meal = {
-          ...(parsed as Omit<Meal, 'id' | 'eaten'>),
-          id: crypto.randomUUID(),
-          eaten: false,
-        };
-        return { success: true, data: meal };
+    let closest: Meal | null = null;
+    let closestDiff = Infinity;
+
+    try {
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        const text = await this.callGemini(prompt);
+        const parsed = this.parseJsonResponse(text);
+
+        if (parsed && !Array.isArray(parsed) && this.validateMeal(parsed)) {
+          const candidate: Meal = {
+            ...(parsed as Omit<Meal, 'id' | 'eaten'>),
+            id: crypto.randomUUID(),
+            eaten: false,
+          };
+
+          // Accept immediately if within the kcal tolerance.
+          if (candidate.kcal >= minKcal && candidate.kcal <= maxKcal) {
+            return { success: true, data: candidate };
+          }
+
+          // Otherwise remember the closest match and try again.
+          const diff = Math.abs(candidate.kcal - currentMeal.kcal);
+          if (diff < closestDiff) {
+            closestDiff = diff;
+            closest = candidate;
+          }
+          console.warn(
+            `[Gemini] Swap attempt ${attempt + 1}: ${candidate.kcal} kcal outside ${Math.round(minKcal)}–${Math.round(maxKcal)} — retrying.`
+          );
+        }
+      }
+
+      // No candidate landed in range; return the closest one we found.
+      if (closest) {
+        return { success: true, data: closest };
       }
 
       return { success: false, error: 'Nie udało się przetworzyć odpowiedzi AI.' };
