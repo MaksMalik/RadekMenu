@@ -4,7 +4,7 @@ import { Copy, ClipboardPaste, Sparkles, ShoppingCart, ChefHat, Loader2, AlertCi
 import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
 import { DayGrid } from './DayGrid';
-import { MacroProgressBars } from './MacroProgressBars';
+import { MacroRings } from './MacroRings';
 import { MealCard } from './MealCard';
 import { EditMealModal } from './EditMealModal';
 import { AddMealModal } from './AddMealModal';
@@ -109,8 +109,8 @@ export function DietView() {
         </div>
       )}
 
-      {/* Macro Progress Bars */}
-      <MacroProgressBars
+      {/* Macro Rings */}
+      <MacroRings
         meals={meals}
         calorieTarget={userProfile.dailyCalorieTarget}
         proteinTarget={userProfile.dailyProteinTarget}

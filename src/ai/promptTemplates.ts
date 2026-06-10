@@ -23,7 +23,7 @@ export function buildSwapPrompt(
     : '';
 
   const preferredSection = profile.preferredIngredients.length > 0
-    ? `\n\nPreferowane składniki (sugestie, nie wymóg):\n${profile.preferredIngredients.map(i => `- ${i}`).join('\n')}`
+    ? `\n\nLubiane składniki (TYLKO luźna inspiracja — NIE musisz ich używać, posiłek NIE musi ich zawierać; traktuj jako delikatną podpowiedź smaku):\n${profile.preferredIngredients.map(i => `- ${i}`).join('\n')}`
     : '';
 
   const vegetableRuleSection = profile.vegetableRule
@@ -81,7 +81,7 @@ export function buildFullDayPrompt(
     : '';
 
   const preferredSection = profile.preferredIngredients.length > 0
-    ? `\n\nPreferowane składniki (sugestie, nie wymóg):\n${profile.preferredIngredients.map(i => `- ${i}`).join('\n')}`
+    ? `\n\nLubiane składniki (TYLKO luźna inspiracja — NIE musisz ich używać w każdym posiłku; bądź kreatywny i różnorodny, używaj też innych bezpiecznych produktów):\n${profile.preferredIngredients.map(i => `- ${i}`).join('\n')}`
     : '';
 
   const vegetableRuleSection = profile.vegetableRule
