@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Copy, ClipboardPaste, Sparkles, ShoppingCart, ChefHat, Loader2,
-  Refrigerator, Plus, MessageSquarePlus, AlertTriangle, MoreHorizontal,
-  UtensilsCrossed, CheckSquare, Square, Lightbulb,
+  Refrigerator, Plus, MessageSquarePlus, AlertTriangle, MoreVertical,
+  UtensilsCrossed, CheckSquare, Square, Lightbulb, X,
 } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
@@ -48,17 +48,16 @@ export function DietView() {
   const [copyingMeal, setCopyingMeal] = useState<Meal | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
   const [dayTab, setDayTab] = useState<DayTab>('posilki');
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const moreRef = useRef<HTMLDivElement>(null);
 
-  // Per-day shopping list (current day only).
   const dayShoppingList = useMemo(
     () => generateShoppingList(currentDayPlan ? [currentDayPlan] : []),
     [currentDayPlan]
   );
 
-  // Per-day cooking guide (current day only), keeping only meals that have steps.
   const dayCookingGuide = useMemo<CookingGuideEntry[]>(
     () =>
       generateCookingGuide(currentDayPlan ? [currentDayPlan] : []).filter(
@@ -85,11 +84,11 @@ export function DietView() {
   }, []);
 
   const handleGenerateDay = async () => {
+    setFabOpen(false);
     setAiGenerating(true);
     const otherDays = dayPlans.filter(dp => dp.date !== selectedDate);
     const result = await generateFullDay(userProfile, geminiApiKey || '', otherDays, meals);
     if (result.success && Array.isArray(result.data)) {
-      // Keep existing meals, append the AI-generated ones, sort by meal-type order
       const order = ['Śniadanie', 'II Śniadanie', 'Obiad', 'Przekąska', 'Kolacja'];
       const merged = [...meals, ...result.data].sort(
         (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
@@ -124,37 +123,17 @@ export function DietView() {
         </div>
       )}
 
-      {/* Selected day header */}
-      <div>
+      {/* Selected day header + kebab menu */}
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-bold text-slate-800 capitalize">{formatLong(selectedDate)}</h2>
-      </div>
-
-      {/* Primary AI button */}
-      <motion.button
-        whileHover={{ scale: aiGenerating || !hasApiKey ? 1 : 1.01 }}
-        whileTap={{ scale: aiGenerating || !hasApiKey ? 1 : 0.99 }}
-        onClick={handleGenerateDay}
-        disabled={aiGenerating || !hasApiKey}
-        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-200 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-      >
-        {aiGenerating ? (
-          <><Loader2 size={16} className="animate-spin" /> Generuję plan...</>
-        ) : meals.length > 0 ? (
-          <><Sparkles size={16} /> Uzupełnij dzień przez AI</>
-        ) : (
-          <><Sparkles size={16} /> Wygeneruj cały dzień przez AI</>
-        )}
-      </motion.button>
-
-      {/* Quick actions: 2 AI shortcuts + Add + More */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <ActionButton onClick={() => setShowFridge(true)} icon={<Refrigerator size={15} />} label="Co w lodówce?" tone="sky" disabled={!hasApiKey} />
-        <ActionButton onClick={() => setShowAddFromDescription(true)} icon={<MessageSquarePlus size={15} />} label="Dodaj z opisu" tone="sky" disabled={!hasApiKey} />
-        <ActionButton onClick={() => setShowAddMeal(true)} icon={<Plus size={15} />} label="Dodaj posiłek" tone="slate" />
-
-        {/* More menu */}
         <div className="relative" ref={moreRef}>
-          <ActionButton onClick={() => setMoreOpen(o => !o)} icon={<MoreHorizontal size={15} />} label="Więcej" tone="slate" fullWidth />
+          <button
+            onClick={() => setMoreOpen(o => !o)}
+            aria-label="Więcej opcji"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            <MoreVertical size={18} />
+          </button>
           <AnimatePresence>
             {moreOpen && (
               <motion.div
@@ -162,7 +141,7 @@ export function DietView() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -6, scale: 0.97 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 z-30 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden"
+                className="absolute right-0 z-30 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden"
               >
                 <MenuItem onClick={() => { setMoreOpen(false); dispatch({ type: 'COPY_DAY', date: selectedDate }); showToast('Skopiowano dzień', 'success'); }} icon={<Copy size={15} />} label="Kopiuj dzień" />
                 <MenuItem onClick={() => { setMoreOpen(false); dispatch({ type: 'PASTE_DAY', targetDate: selectedDate }); }} icon={<ClipboardPaste size={15} />} label="Wklej dzień" disabled={clipboard === null} />
@@ -174,6 +153,25 @@ export function DietView() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Inline AI generate — ONLY when the day is empty */}
+      {meals.length === 0 && (
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          whileHover={{ scale: aiGenerating || !hasApiKey ? 1 : 1.01 }}
+          whileTap={{ scale: aiGenerating || !hasApiKey ? 1 : 0.99 }}
+          onClick={handleGenerateDay}
+          disabled={aiGenerating || !hasApiKey}
+          className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-200 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+        >
+          {aiGenerating ? (
+            <><Loader2 size={16} className="animate-spin" /> Generuję plan...</>
+          ) : (
+            <><Sparkles size={16} /> Wygeneruj cały dzień przez AI</>
+          )}
+        </motion.button>
+      )}
 
       {/* Per-day tab bar */}
       <div className="flex w-full gap-1 rounded-full bg-slate-100 p-1">
@@ -216,18 +214,16 @@ export function DietView() {
             transition={{ duration: 0.2 }}
             className="space-y-5"
           >
-            {/* Macro Rings */}
             <MacroRings
               meals={meals}
               calorieTarget={userProfile.dailyCalorieTarget}
               proteinTarget={userProfile.dailyProteinTarget}
             />
 
-            {/* Meal Cards */}
             <div className="space-y-3">
               {meals.length === 0 ? (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center">
-                  <p className="text-slate-400 text-sm">Brak posiłków na ten dzień. Wygeneruj plan przez AI lub dodaj posiłek ręcznie.</p>
+                  <p className="text-slate-400 text-sm">Brak posiłków na ten dzień. Użyj przycisku + lub wygeneruj plan przez AI.</p>
                 </div>
               ) : (
                 meals.map(meal => (
@@ -316,7 +312,6 @@ export function DietView() {
                     key={`${entry.date}-${entry.mealType}-${entryIdx}`}
                     className="bg-white rounded-3xl shadow-sm border border-slate-100 p-4"
                   >
-                    {/* Meal title */}
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                         {entry.mealType}
@@ -325,8 +320,6 @@ export function DietView() {
                         {entry.mealTitle}
                       </span>
                     </div>
-
-                    {/* Numbered steps */}
                     <ol className="space-y-1.5 ml-1">
                       {entry.steps.map((step, stepIdx) => (
                         <li key={stepIdx} className="flex gap-2 text-sm text-slate-700">
@@ -337,8 +330,6 @@ export function DietView() {
                         </li>
                       ))}
                     </ol>
-
-                    {/* Tip */}
                     {entry.tip && (
                       <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3">
                         <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -352,6 +343,19 @@ export function DietView() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Floating Action Button (speed dial) */}
+      <SpeedDial
+        open={fabOpen}
+        onToggle={() => setFabOpen(o => !o)}
+        hasApiKey={hasApiKey}
+        hasMeals={meals.length > 0}
+        aiGenerating={aiGenerating}
+        onAddMeal={() => { setFabOpen(false); setShowAddMeal(true); }}
+        onAddFromDescription={() => { setFabOpen(false); setShowAddFromDescription(true); }}
+        onFridge={() => { setFabOpen(false); setShowFridge(true); }}
+        onGenerateDay={handleGenerateDay}
+      />
 
       {/* Modals */}
       {editingMeal && (
@@ -376,28 +380,91 @@ export function DietView() {
   );
 }
 
-function ActionButton({
-  onClick, icon, label, tone, disabled, fullWidth,
+// ─── Floating Action Button / Speed Dial ────────────────────────────────────
+
+function SpeedDial({
+  open, onToggle, hasApiKey, hasMeals, aiGenerating,
+  onAddMeal, onAddFromDescription, onFridge, onGenerateDay,
 }: {
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  tone: 'sky' | 'slate';
-  disabled?: boolean;
-  fullWidth?: boolean;
+  open: boolean;
+  onToggle: () => void;
+  hasApiKey: boolean;
+  hasMeals: boolean;
+  aiGenerating: boolean;
+  onAddMeal: () => void;
+  onAddFromDescription: () => void;
+  onFridge: () => void;
+  onGenerateDay: () => void;
 }) {
-  const toneClass = tone === 'sky'
-    ? 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100'
-    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-800';
+  const actions = [
+    { label: 'Dodaj posiłek', icon: <Plus size={18} />, onClick: onAddMeal, color: 'bg-slate-700', disabled: false },
+    { label: 'Dodaj z opisu (AI)', icon: <MessageSquarePlus size={18} />, onClick: onAddFromDescription, color: 'bg-sky-500', disabled: !hasApiKey },
+    { label: 'Co w lodówce? (AI)', icon: <Refrigerator size={18} />, onClick: onFridge, color: 'bg-sky-500', disabled: !hasApiKey },
+    {
+      label: hasMeals ? 'Uzupełnij dzień (AI)' : 'Wygeneruj cały dzień (AI)',
+      icon: aiGenerating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />,
+      onClick: onGenerateDay,
+      color: 'bg-emerald-500',
+      disabled: !hasApiKey || aiGenerating,
+    },
+  ];
+
   return (
-    <motion.button
-      whileTap={{ scale: disabled ? 1 : 0.96 }}
-      onClick={onClick}
-      disabled={disabled}
-      className={`${fullWidth ? 'w-full ' : ''}inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold rounded-xl shadow-sm border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${toneClass}`}
-    >
-      {icon} {label}
-    </motion.button>
+    <>
+      {/* Backdrop when open */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onToggle}
+            className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40"
+          />
+        )}
+      </AnimatePresence>
+
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+        {/* Action buttons */}
+        <AnimatePresence>
+          {open && (
+            <div className="flex flex-col items-end gap-3 mb-1">
+              {actions.map((a, i) => (
+                <motion.button
+                  key={a.label}
+                  initial={{ opacity: 0, y: 16, scale: 0.8 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 16, scale: 0.8 }}
+                  transition={{ delay: open ? (actions.length - 1 - i) * 0.04 : 0, type: 'spring', stiffness: 500, damping: 30 }}
+                  onClick={a.disabled ? undefined : a.onClick}
+                  disabled={a.disabled}
+                  className="flex items-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <span className="px-3 py-1.5 rounded-xl bg-white shadow-md text-sm font-medium text-slate-700 whitespace-nowrap">
+                    {a.label}
+                  </span>
+                  <span className={`w-12 h-12 rounded-full ${a.color} text-white flex items-center justify-center shadow-lg`}>
+                    {a.icon}
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Main FAB */}
+        <motion.button
+          onClick={onToggle}
+          whileTap={{ scale: 0.9 }}
+          className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white flex items-center justify-center shadow-xl shadow-emerald-300/50"
+          aria-label={open ? 'Zamknij menu' : 'Dodaj'}
+        >
+          <motion.span animate={{ rotate: open ? 135 : 0 }} transition={{ type: 'spring', stiffness: 400, damping: 22 }}>
+            {open ? <X size={28} /> : <Plus size={28} />}
+          </motion.span>
+        </motion.button>
+      </div>
+    </>
   );
 }
 
