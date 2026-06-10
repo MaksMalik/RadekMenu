@@ -13,8 +13,13 @@ export function LoginScreen() {
     setError('');
     try {
       await signInWithGoogle();
-    } catch {
-      setError('Logowanie nie powiodło się. Spróbuj ponownie.');
+    } catch (err) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code: unknown }).code)
+          : 'unknown';
+      console.error('[Login] sign-in failed:', code, err);
+      setError(`Logowanie nie powiodło się (${code}). Spróbuj ponownie.`);
       setLoading(false);
     }
   };
