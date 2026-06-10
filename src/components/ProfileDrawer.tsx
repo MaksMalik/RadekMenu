@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Key } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 
 interface ProfileDrawerProps {
@@ -178,6 +178,26 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                     </span>
                   ))}
                 </div>
+              </section>
+
+              {/* Gemini API Key */}
+              <section>
+                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <Key size={14} /> Klucz API Gemini
+                </h3>
+                <input
+                  type="password"
+                  value={state.geminiApiKey}
+                  onChange={(e) => dispatch({ type: 'SET_API_KEY', key: e.target.value })}
+                  placeholder="Wklej klucz API..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
+                />
+                <p className="mt-1.5 text-xs text-slate-400">
+                  Pobierz z{' '}
+                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-emerald-500 underline">
+                    https://aistudio.google.com/apikey
+                  </a>
+                </p>
               </section>
 
               {/* Equipment */}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, ClipboardPaste, Sparkles, ShoppingCart, ChefHat, Loader2, Refrigerator, Plus, MessageSquarePlus } from 'lucide-react';
+import { Copy, ClipboardPaste, Sparkles, ShoppingCart, ChefHat, Loader2, Refrigerator, Plus, MessageSquarePlus, AlertTriangle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
 import { DayGrid } from './DayGrid';
@@ -28,6 +28,8 @@ export function DietView() {
   const { state, dispatch } = useUser();
   const { showToast } = useToast();
   const { dayPlans, selectedDay, clipboard, userProfile, geminiApiKey } = state;
+
+  const hasApiKey = Boolean(geminiApiKey);
 
   const currentDayPlan = dayPlans.find(dp => dp.day === selectedDay);
   const meals = currentDayPlan?.meals ?? [];
@@ -70,16 +72,24 @@ export function DietView() {
         />
       </div>
 
+      {/* API Key Warning */}
+      {!hasApiKey && (
+        <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-800">
+          <AlertTriangle size={16} className="shrink-0 text-amber-500" />
+          Dodaj klucz API Gemini w ustawieniach, aby korzystać z funkcji AI.
+        </div>
+      )}
+
       {/* Day Title + AI generate */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-xl font-bold text-slate-800">
           {getDayName(selectedDay)} <span className="text-slate-400 font-medium">· Dzień {selectedDay}</span>
         </h2>
         <motion.button
-          whileHover={{ scale: aiGenerating ? 1 : 1.03 }}
-          whileTap={{ scale: aiGenerating ? 1 : 0.97 }}
+          whileHover={{ scale: (aiGenerating || !hasApiKey) ? 1 : 1.03 }}
+          whileTap={{ scale: (aiGenerating || !hasApiKey) ? 1 : 0.97 }}
           onClick={handleGenerateDay}
-          disabled={aiGenerating}
+          disabled={aiGenerating || !hasApiKey}
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-200 hover:shadow-lg hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
         >
           {aiGenerating ? (
@@ -92,8 +102,8 @@ export function DietView() {
 
       {/* Secondary actions */}
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-        <SecondaryButton onClick={() => setShowFridge(true)} icon={<Refrigerator size={14} />} label="Co w lodówce?" highlight />
-        <SecondaryButton onClick={() => setShowAddFromDescription(true)} icon={<MessageSquarePlus size={14} />} label="Dodaj z opisu" highlight />
+        <SecondaryButton onClick={() => setShowFridge(true)} icon={<Refrigerator size={14} />} label="Co w lodówce?" highlight disabled={!hasApiKey} />
+        <SecondaryButton onClick={() => setShowAddFromDescription(true)} icon={<MessageSquarePlus size={14} />} label="Dodaj z opisu" highlight disabled={!hasApiKey} />
         <SecondaryButton onClick={() => setShowAddMeal(true)} icon={<Plus size={14} />} label="Dodaj posiłek" />
         <SecondaryButton onClick={() => dispatch({ type: 'COPY_DAY', day: selectedDay })} icon={<Copy size={14} />} label="Kopiuj dzień" />
         <SecondaryButton onClick={() => dispatch({ type: 'PASTE_DAY', targetDay: selectedDay })} disabled={clipboard === null} icon={<ClipboardPaste size={14} />} label="Wklej dzień" />

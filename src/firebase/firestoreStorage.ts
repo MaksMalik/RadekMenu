@@ -8,7 +8,7 @@ import type { AppState } from '../types';
  * historyStack is excluded (transient, session-only).
  */
 
-type PersistedState = Omit<AppState, 'historyStack'>;
+type PersistedState = Omit<AppState, 'historyStack' | 'clipboard'>;
 
 export async function readUserState(uid: string): Promise<AppState | null> {
   try {
@@ -19,7 +19,7 @@ export async function readUserState(uid: string): Promise<AppState | null> {
     const data = snap.data() as PersistedState;
     if (typeof data.schemaVersion !== 'number') return null;
 
-    return { ...data, historyStack: [] };
+    return { ...data, historyStack: [], clipboard: null };
   } catch (e) {
     console.warn('[Firestore] Failed to read user state:', e);
     return null;
@@ -53,7 +53,7 @@ export function subscribeToUserState(
       callback(null);
       return;
     }
-    callback({ ...data, historyStack: [] });
+    callback({ ...data, historyStack: [], clipboard: null });
   }, (error) => {
     console.warn('[Firestore] Snapshot listener error:', error);
   });

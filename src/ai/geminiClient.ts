@@ -3,7 +3,7 @@ import { buildSwapPrompt, buildFullDayPrompt, buildFridgePrompt, buildEstimatePr
 
 export type { GeminiResponse } from '../types';
 
-const DEFAULT_GEMINI_KEY = (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
+const DEFAULT_GEMINI_KEY = '';
 
 export class GeminiClient {
   private apiKey: string;
