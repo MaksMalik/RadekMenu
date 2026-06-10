@@ -11,23 +11,11 @@ export function LoginScreen() {
   const handleLogin = () => {
     setError('');
     setLoading(true);
-    // Call sign-in synchronously within the click handler so the browser
-    // keeps the popup tied to the user gesture (avoids auth/popup-blocked).
-    signInWithGoogle().catch((err: unknown) => {
-      const code =
-        err && typeof err === 'object' && 'code' in err
-          ? String((err as { code: unknown }).code)
-          : 'unknown';
-      console.error('[Login] sign-in failed:', code, err);
-      if (code === 'auth/popup-blocked') {
-        setError('Przeglądarka zablokowała okno logowania. Zezwól na wyskakujące okienka dla tej strony i spróbuj ponownie.');
-      } else if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-        setError('Okno logowania zostało zamknięte. Spróbuj ponownie.');
-      } else {
-        setError(`Logowanie nie powiodło się (${code}). Spróbuj ponownie.`);
-      }
-      setLoading(false);
-    });
+    signInWithGoogle();
+    // If popup works, onAuthStateChanged will handle it.
+    // If it falls back to redirect, the page will navigate away.
+    // Reset loading after a short delay (in case popup opens successfully)
+    setTimeout(() => setLoading(false), 3000);
   };
 
   return (
