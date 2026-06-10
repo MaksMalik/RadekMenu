@@ -1,19 +1,18 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
+  GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
-  getRedirectResult,
   signOut as fbSignOut,
   onAuthStateChanged,
-  browserPopupRedirectResolver,
   type User,
 } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase/config';
+import { auth } from '../firebase/config';
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  signInWithGoogle: () => void;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -24,15 +23,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle redirect result (for when popup fallback to redirect)
-    getRedirectResult(auth).then((result) => {
-      if (result?.user) {
-        setUser(result.user);
-      }
-    }).catch((err) => {
-      console.warn('[Auth] redirect result error:', err);
-    });
-
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -40,19 +30,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub;
   }, []);
 
-  const signInWithGoogle = useCallback(() => {
-    // Try popup first, fall back to redirect immediately if it fails
-    signInWithPopup(auth, googleProvider, browserPopupRedirectResolver)
-      .catch(() => {
-        // Popup failed (blocked by COOP, browser settings, etc.)
-        // Fall back to full-page redirect which always works
-        return signInWithRedirect(auth, googleProvider);
-      });
-  }, []);
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
 
-  const signOut = useCallback(async () => {
+    try {
+      console.log('Initiating Google Sign-In...');
+      await signInWithPopup(auth, provider);
+      console.log('Sign-in successful');
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string };
+      console.error('Sign-in error:', err);
+
+      const shouldRedirect =
+        err.code === 'auth/popup-blocked' ||
+        err.code === 'auth/cancelled-popup-request' ||
+        err.code === 'auth/network-request-failed';
+
+      if (shouldRedirect) {
+        console.log('Popup failed, falling back to redirect...', err.code);
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
+      // User closed popup — not an error
+      if (err.code === 'auth/popup-closed-by-user') {
+        return;
+      }
+
+      throw error;
+    }
+  };
+
+  const signOut = async () => {
     await fbSignOut(auth);
-  }, []);
+  };
 
   return (
     <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>

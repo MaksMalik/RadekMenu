@@ -8,14 +8,17 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError('');
     setLoading(true);
-    signInWithGoogle();
-    // If popup works, onAuthStateChanged will handle it.
-    // If it falls back to redirect, the page will navigate away.
-    // Reset loading after a short delay (in case popup opens successfully)
-    setTimeout(() => setLoading(false), 3000);
+    try {
+      await signInWithGoogle();
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? 'unknown';
+      setError(`Błąd logowania (${code}). Spróbuj ponownie.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
