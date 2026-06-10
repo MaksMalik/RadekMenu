@@ -1,16 +1,59 @@
 import type { Meal, MealType, UserProfile, GeminiResponse, DayPlan } from '../types';
 import { buildSwapPrompt, buildFullDayPrompt, buildFridgePrompt, buildEstimatePrompt } from './promptTemplates';
+import {
+  DEFAULT_MODEL,
+  MAX_SWAP_ATTEMPTS,
+  MEAL_SCHEMA,
+  clampTimeout,
+  classifyGeminiError,
+  errorMessage,
+  isRawLoggingAllowed,
+  isWithinKcalBand,
+  selectSwapResult,
+  stripKey,
+  validateMeal as validateMealStrict,
+  type GeminiErrorKind,
+} from './geminiLogic';
 
 export type { GeminiResponse } from '../types';
 
 const DEFAULT_GEMINI_KEY = '';
 
+/** Maximum number of transport attempts when the server returns a transient status (503/429). */
+const MAX_TRANSIENT_ATTEMPTS = 3;
+/** Base backoff delay (ms) used between transient retries. */
+const BASE_BACKOFF_MS = 500;
+/** Upper bound (ms) on the exponential transient backoff. */
+const MAX_BACKOFF_MS = 4000;
+
+/** Structured-output schema for a single meal. */
+const SINGLE_MEAL_SCHEMA = MEAL_SCHEMA;
+/** Structured-output schema for an array of meals (e.g. full-day generation). */
+const MEAL_ARRAY_SCHEMA = { type: 'array', items: MEAL_SCHEMA } as const;
+
+/**
+ * Transport-layer error carrying a classified {@link GeminiErrorKind}. The
+ * `message` is always the Polish, key-free text produced by `errorMessage`, so
+ * callers can surface it directly without leaking the API key.
+ */
+class GeminiError extends Error {
+  readonly kind: GeminiErrorKind;
+  constructor(kind: GeminiErrorKind, message: string) {
+    super(message);
+    this.name = 'GeminiError';
+    this.kind = kind;
+  }
+}
+
 export class GeminiClient {
   private apiKey: string;
-  private model = 'gemini-3.1-flash-lite';
+  private model: string;
+  private timeoutMs: number;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, opts?: { model?: string; timeoutMs?: number }) {
     this.apiKey = apiKey;
+    this.model = opts?.model ?? DEFAULT_MODEL;
+    this.timeoutMs = clampTimeout(opts?.timeoutMs);
   }
 
   async swapMeal(
@@ -19,58 +62,50 @@ export class GeminiClient {
     userComment?: string,
     sameDayTitles?: string[]
   ): Promise<GeminiResponse> {
-    if (!this.apiKey) {
-      return { success: false, error: 'Brak klucza API Gemini.' };
+    if (!this.hasKey()) {
+      return { success: false, error: errorMessage('missing_key') };
     }
 
     const prompt = buildSwapPrompt(currentMeal, userProfile, userComment, sameDayTitles);
 
-    // Hard kcal constraint: new meal must stay within ±5% of the original.
-    const minKcal = currentMeal.kcal * 0.95;
-    const maxKcal = currentMeal.kcal * 1.05;
-    const MAX_ATTEMPTS = 4;
-
-    let closest: Meal | null = null;
-    let closestDiff = Infinity;
+    // Collect every valid candidate produced across the swap attempts; the pure
+    // `selectSwapResult` decides the final winner (in-band first, else closest).
+    const candidates: Meal[] = [];
 
     try {
-      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        const text = await this.callGemini(prompt);
-        const parsed = this.parseJsonResponse(text);
+      // At most MAX_SWAP_ATTEMPTS requests, one callGemini per iteration
+      // (Requirement 8.2). Stop early on the first in-band hit (Requirement 8.1).
+      for (let attempt = 0; attempt < MAX_SWAP_ATTEMPTS; attempt++) {
+        const parsed = await this.callGemini(prompt, SINGLE_MEAL_SCHEMA);
 
-        if (parsed && !Array.isArray(parsed) && this.validateMeal(parsed)) {
+        // Strict validation runs on the parsed Omit<Meal,'id'|'eaten'> payload
+        // BEFORE the client-only id/eaten fields are assigned.
+        if (validateMealStrict(parsed)) {
           const candidate: Meal = {
-            ...(parsed as Omit<Meal, 'id' | 'eaten'>),
+            ...parsed,
             id: crypto.randomUUID(),
             eaten: false,
           };
+          candidates.push(candidate);
 
-          // Accept immediately if within the kcal tolerance.
-          if (candidate.kcal >= minKcal && candidate.kcal <= maxKcal) {
-            return { success: true, data: candidate };
+          // First in-band candidate accepted immediately, halting further requests.
+          if (isWithinKcalBand(candidate.kcal, currentMeal.kcal)) {
+            break;
           }
-
-          // Otherwise remember the closest match and try again.
-          const diff = Math.abs(candidate.kcal - currentMeal.kcal);
-          if (diff < closestDiff) {
-            closestDiff = diff;
-            closest = candidate;
-          }
-          console.warn(
-            `[Gemini] Swap attempt ${attempt + 1}: ${candidate.kcal} kcal outside ${Math.round(minKcal)}–${Math.round(maxKcal)} — retrying.`
-          );
         }
       }
 
-      // No candidate landed in range; return the closest one we found.
-      if (closest) {
-        return { success: true, data: closest };
+      // Closest-candidate fallback or failure is decided by the pure selector.
+      const selection = selectSwapResult(candidates, currentMeal.kcal);
+      if (selection.kind === 'success') {
+        return { success: true, data: selection.meal };
       }
 
-      return { success: false, error: 'Nie udało się przetworzyć odpowiedzi AI.' };
+      // Total failure: surface a Polish, key-free message and leave the
+      // original Meal untouched (Requirement 8.5).
+      return { success: false, error: errorMessage('processing') };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Nieznany błąd';
-      return { success: false, error: message };
+      return { success: false, error: this.toErrorMessage(err) };
     }
   }
 
@@ -79,36 +114,29 @@ export class GeminiClient {
     otherDays?: DayPlan[],
     existingMeals?: Meal[]
   ): Promise<GeminiResponse> {
-    if (!this.apiKey) {
-      return { success: false, error: 'Brak klucza API Gemini.' };
+    if (!this.hasKey()) {
+      return { success: false, error: errorMessage('missing_key') };
     }
 
     const prompt = buildFullDayPrompt(userProfile, otherDays, existingMeals);
 
     try {
-      const text = await this.callGemini(prompt);
-      const parsed = this.parseJsonResponse(text);
+      const parsed = await this.callGemini(prompt, MEAL_ARRAY_SCHEMA);
 
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => this.validateMeal(item))) {
-        const meals: Meal[] = parsed.map(m => ({
-          ...(m as Omit<Meal, 'id' | 'eaten'>),
+      // Every item must pass the STRICT validator before client-only id/eaten
+      // fields are assigned (Requirements 7.5, 5.2).
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => validateMealStrict(item))) {
+        const meals: Meal[] = parsed.map(parsedMeal => ({
+          ...parsedMeal,
           id: crypto.randomUUID(),
           eaten: false,
         }));
         return { success: true, data: meals };
       }
 
-      if (Array.isArray(parsed)) {
-        const failIdx = parsed.findIndex(item => !this.validateMeal(item));
-        console.log('[Gemini] Validation failed at index:', failIdx, 'item:', parsed[failIdx]);
-      } else {
-        console.log('[Gemini] Parsed result is not an array:', typeof parsed, parsed);
-      }
-
-      return { success: false, error: 'Nie udało się przetworzyć odpowiedzi AI.' };
+      return { success: false, error: errorMessage('processing') };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Nieznany błąd';
-      return { success: false, error: message };
+      return { success: false, error: this.toErrorMessage(err) };
     }
   }
 
@@ -117,29 +145,29 @@ export class GeminiClient {
     mealType: string,
     userProfile: UserProfile
   ): Promise<GeminiResponse> {
-    if (!this.apiKey) {
-      return { success: false, error: 'Brak klucza API Gemini.' };
+    if (!this.hasKey()) {
+      return { success: false, error: errorMessage('missing_key') };
     }
 
     const prompt = buildFridgePrompt(ingredients, mealType, userProfile);
 
     try {
-      const text = await this.callGemini(prompt);
-      const parsed = this.parseJsonResponse(text);
+      const parsed = await this.callGemini(prompt, MEAL_ARRAY_SCHEMA);
 
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => this.validateMeal(item))) {
-        const meals: Meal[] = parsed.map(m => ({
-          ...(m as Omit<Meal, 'id' | 'eaten'>),
+      // Every item must pass the STRICT validator before client-only id/eaten
+      // fields are assigned (Requirements 7.5, 5.2).
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => validateMealStrict(item))) {
+        const meals: Meal[] = parsed.map(parsedMeal => ({
+          ...parsedMeal,
           id: crypto.randomUUID(),
           eaten: false,
         }));
         return { success: true, data: meals };
       }
 
-      return { success: false, error: 'Nie udało się przetworzyć odpowiedzi AI.' };
+      return { success: false, error: errorMessage('processing') };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Nieznany błąd';
-      return { success: false, error: message };
+      return { success: false, error: this.toErrorMessage(err) };
     }
   }
 
@@ -147,149 +175,161 @@ export class GeminiClient {
     description: string,
     mealType: MealType
   ): Promise<GeminiResponse> {
-    if (!this.apiKey) {
-      return { success: false, error: 'Brak klucza API Gemini.' };
+    if (!this.hasKey()) {
+      return { success: false, error: errorMessage('missing_key') };
     }
 
     const prompt = buildEstimatePrompt(description, mealType);
 
     try {
-      const text = await this.callGemini(prompt);
-      const parsed = this.parseJsonResponse(text);
+      const parsed = await this.callGemini(prompt, SINGLE_MEAL_SCHEMA);
 
-      if (parsed && !Array.isArray(parsed)) {
-        const meal: Meal = {
-          ...(parsed as Omit<Meal, 'id' | 'eaten' | 'type'>),
-          id: crypto.randomUUID(),
-          eaten: false,
-          type: mealType,
-        };
-        return { success: true, data: meal };
+      // The estimate prompt omits `type`; the strict validator requires a valid
+      // MealType, so inject the caller-supplied mealType before validating
+      // (Requirements 7.5, 5.2).
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const withType = { ...(parsed as Record<string, unknown>), type: mealType };
+        if (validateMealStrict(withType)) {
+          const meal: Meal = {
+            ...withType,
+            id: crypto.randomUUID(),
+            eaten: false,
+          };
+          return { success: true, data: meal };
+        }
       }
 
-      return { success: false, error: 'Nie udało się przetworzyć odpowiedzi AI.' };
+      return { success: false, error: errorMessage('processing') };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Nieznany błąd';
-      return { success: false, error: message };
+      return { success: false, error: this.toErrorMessage(err) };
     }
   }
 
-  private async callGemini(prompt: string): Promise<string> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+  /** True when a usable (non-empty, non-whitespace) API key is configured. */
+  private hasKey(): boolean {
+    return this.apiKey.trim().length > 0;
+  }
 
-    let lastError = '';
-    for (let attempt = 0; attempt < 3; attempt++) {
+  /** Builds a key-free transport error for the given kind. */
+  private fail(kind: GeminiErrorKind): GeminiError {
+    return new GeminiError(kind, stripKey(errorMessage(kind), this.apiKey));
+  }
+
+  /** Converts a caught error into a Polish, key-free message for a GeminiResponse. */
+  private toErrorMessage(err: unknown): string {
+    if (err instanceof GeminiError) {
+      return err.message;
+    }
+    if (err instanceof Error) {
+      return stripKey(err.message, this.apiKey);
+    }
+    return errorMessage('unknown');
+  }
+
+  /**
+   * Transport layer: issues a single structured-output Gemini request for
+   * `prompt`, bounded by an abortable timeout, retrying only on transient
+   * server statuses (503/429) with capped exponential backoff. Returns the
+   * parsed JSON value from a single `JSON.parse` of the returned text.
+   *
+   * - Requests structured output via `responseMimeType: 'application/json'`
+   *   and the supplied `responseSchema` (Requirement 7.1).
+   * - Applies an `AbortController` + `setTimeout(clampedTimeout)`; on timeout it
+   *   aborts the in-flight request and discards any partial data
+   *   (Requirements 6.1, 6.2, 6.3).
+   * - Short-circuits with a `missing_key` failure when the key is empty or
+   *   whitespace, issuing no request (Requirement 5.4).
+   * - Performs a single `JSON.parse` with no text-extraction fallbacks
+   *   (Requirement 7.2).
+   *
+   * Throws a {@link GeminiError} carrying the classified kind on failure.
+   */
+  private async callGemini(prompt: string, schema: unknown): Promise<unknown> {
+    // Short-circuit: empty/whitespace key issues no request (Requirement 5.4).
+    if (!this.hasKey()) {
+      throw this.fail('missing_key');
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+    const body = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.8,
+        maxOutputTokens: 4096,
+        responseMimeType: 'application/json',
+        responseSchema: schema,
+      },
+    });
+
+    for (let attempt = 0; attempt < MAX_TRANSIENT_ATTEMPTS; attempt++) {
       if (attempt > 0) {
-        await new Promise(resolve => setTimeout(resolve, 3000 * attempt));
+        const backoff = Math.min(BASE_BACKOFF_MS * 2 ** (attempt - 1), MAX_BACKOFF_MS);
+        await new Promise(resolve => setTimeout(resolve, backoff));
       }
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 4096,
-          },
-        }),
-      });
+      const response = await this.fetchWithTimeout(url, body);
 
       if (response.ok) {
         const data: GeminiApiResponse = await response.json();
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) {
-          throw new Error('Brak odpowiedzi od AI.');
+
+        if (isRawLoggingAllowed()) {
+          // Raw AI response logging permitted in development only (Requirement 9.2).
+          console.log('[Gemini raw response]:', typeof text === 'string' ? text.slice(0, 500) : text);
         }
-        return text;
+
+        if (typeof text !== 'string') {
+          throw this.fail('processing');
+        }
+
+        // Single JSON.parse, no fallback text-extraction strategies (Requirement 7.2).
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw this.fail('processing');
+        }
       }
 
+      // Retry only on transient statuses (503/429) with capped backoff.
       if (response.status === 503 || response.status === 429) {
-        lastError = `Błąd API (${response.status}) — ponawiam...`;
+        // Operational diagnostic — permitted in production (Requirement 9.4).
         console.warn(`[Gemini] Attempt ${attempt + 1} failed with ${response.status}, retrying...`);
         continue;
       }
 
+      // Fatal (non-transient) status: classify and stop retrying.
       const errorText = await response.text();
-      throw new Error(`Błąd API (${response.status}): ${errorText}`);
+      throw this.fail(classifyGeminiError(response.status, errorText));
     }
 
-    throw new Error(lastError || 'Serwer AI niedostępny. Spróbuj za chwilę.');
+    // Transient retries exhausted.
+    throw this.fail('transient');
   }
 
-  private parseJsonResponse(text: string): Meal | Meal[] | null {
-    // Log raw response for debugging
-    console.log('[Gemini raw response]:', text.slice(0, 500));
-    
-    // Strategy 1: Try full JSON.parse
+  /**
+   * Performs a single `fetch` bounded by the clamped timeout. On timeout the
+   * request is aborted and a `timeout` GeminiError is thrown so the caller
+   * surfaces a Polish timeout message and discards any partial data
+   * (Requirements 6.2, 6.3).
+   */
+  private async fetchWithTimeout(url: string, body: string): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      return JSON.parse(text) as Meal | Meal[];
+      return await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        signal: controller.signal,
+      });
     } catch {
-      // continue to next strategy
-    }
-
-    // Strategy 2: Extract from code fences (```json...```)
-    const codeFenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-    if (codeFenceMatch) {
-      try {
-        return JSON.parse(codeFenceMatch[1].trim()) as Meal | Meal[];
-      } catch {
-        // continue to next strategy
+      if (controller.signal.aborted) {
+        throw this.fail('timeout');
       }
+      throw this.fail('unknown');
+    } finally {
+      clearTimeout(timer);
     }
-
-    // Strategy 3: Find first `[` or `{` and attempt parse
-    const firstBracket = text.search(/[\[{]/);
-    if (firstBracket !== -1) {
-      const substr = text.slice(firstBracket);
-      try {
-        return JSON.parse(substr) as Meal | Meal[];
-      } catch {
-        // Try trimming trailing non-JSON content
-        const lastBracket = Math.max(substr.lastIndexOf(']'), substr.lastIndexOf('}'));
-        if (lastBracket !== -1) {
-          try {
-            return JSON.parse(substr.slice(0, lastBracket + 1)) as Meal | Meal[];
-          } catch {
-            // all strategies exhausted
-          }
-        }
-      }
-    }
-
-    return null;
-  }
-
-  private validateMeal(obj: unknown): obj is Meal {
-    if (!obj || typeof obj !== 'object') return false;
-    const m = obj as Record<string, unknown>;
-    // Accept both 'kcal' and 'calories' keys, normalize to kcal
-    const hasKcal = typeof m.kcal === 'number' || typeof m.calories === 'number';
-    // Accept both 'instruction' and 'instructions'
-    const hasInstruction = typeof m.instruction === 'string' || typeof m.instructions === 'string';
-    
-    const valid = (
-      typeof m.type === 'string' &&
-      typeof m.title === 'string' &&
-      hasKcal &&
-      typeof m.protein === 'number' &&
-      typeof m.carbs === 'number' &&
-      typeof m.fats === 'number' &&
-      Array.isArray(m.ingredients) &&
-      hasInstruction
-    );
-    
-    if (valid) {
-      // Normalize calories → kcal
-      if (typeof m.calories === 'number' && typeof m.kcal !== 'number') {
-        (m as Record<string, unknown>).kcal = m.calories;
-      }
-      // Normalize instructions → instruction
-      if (typeof m.instructions === 'string' && typeof m.instruction !== 'string') {
-        (m as Record<string, unknown>).instruction = m.instructions;
-      }
-    }
-    return valid;
   }
 }
 

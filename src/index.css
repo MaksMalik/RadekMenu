@@ -1,3 +1,63 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* =========================================================================
+   Global Mobile CSS Baseline
+   Requirements: 11.1, 11.2, 11.3, 11.4, 11.5
+   ========================================================================= */
+
+@layer base {
+  /* 11.1 & 11.2 — Remove default tap highlight on all interactive elements */
+  a,
+  button,
+  [onclick],
+  [role="button"],
+  input,
+  select,
+  textarea,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 11.3 & 11.4 — Prevent scroll chaining / overscroll on root scroll container */
+  body {
+    overscroll-behavior: none;
+  }
+}
+
+/* 11.5 — Safe-area inset utility classes for all four edges
+   Use env(safe-area-inset-*) to offset content from device cutouts/home indicators */
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-top-margin {
+    margin-top: env(safe-area-inset-top);
+  }
+
+  .safe-right-margin {
+    margin-right: env(safe-area-inset-right);
+  }
+
+  .safe-bottom-margin {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-left-margin {
+    margin-left: env(safe-area-inset-left);
+  }
+}

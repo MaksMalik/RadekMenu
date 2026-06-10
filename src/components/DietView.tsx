@@ -83,22 +83,25 @@ export function DietView() {
   const handleGenerateDay = async () => {
     setFabOpen(false);
     setAiGenerating(true);
-    const otherDays = dayPlans.filter(dp => dp.date !== selectedDate);
-    const result = await generateFullDay(userProfile, geminiApiKey || '', otherDays, meals);
-    if (result.success && Array.isArray(result.data)) {
-      const order = ['Śniadanie', 'II Śniadanie', 'Obiad', 'Przekąska', 'Kolacja'];
-      const merged = [...meals, ...result.data].sort(
-        (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
-      );
-      dispatch({ type: 'SET_DAY_MEALS', date: selectedDate, meals: merged });
-      showToast(
-        meals.length > 0 ? 'Uzupełniono plan dnia przez AI!' : 'Plan dnia wygenerowany pomyślnie!',
-        'success'
-      );
-    } else {
-      showToast(result.error || 'Nie udało się wygenerować dnia. Spróbuj ponownie.', 'error');
+    try {
+      const otherDays = dayPlans.filter(dp => dp.date !== selectedDate);
+      const result = await generateFullDay(userProfile, geminiApiKey || '', otherDays, meals);
+      if (result.success && Array.isArray(result.data)) {
+        const order = ['Śniadanie', 'II Śniadanie', 'Obiad', 'Przekąska', 'Kolacja'];
+        const merged = [...meals, ...result.data].sort(
+          (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
+        );
+        dispatch({ type: 'SET_DAY_MEALS', date: selectedDate, meals: merged });
+        showToast(
+          meals.length > 0 ? 'Uzupełniono plan dnia przez AI!' : 'Plan dnia wygenerowany pomyślnie!',
+          'success'
+        );
+      } else {
+        showToast(result.error || 'Nie udało się wygenerować dnia. Spróbuj ponownie.', 'error');
+      }
+    } finally {
+      setAiGenerating(false);
     }
-    setAiGenerating(false);
   };
 
   return (
@@ -422,7 +425,7 @@ function SpeedDial({
         )}
       </AnimatePresence>
 
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-6 z-50 flex flex-col items-end gap-3">
         {/* Action buttons */}
         <AnimatePresence>
           {open && (

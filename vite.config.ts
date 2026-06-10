@@ -7,12 +7,22 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'foodus-logo.png'],
       workbox: {
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/assets\//, /^\/sw\.js$/, /^\/workbox-/],
         cleanupOutdatedCaches: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-cache',
+              networkTimeoutSeconds: 3,
+            },
+          },
+        ],
       },
       manifest: {
         name: 'Smakołysz — Planer Diety',

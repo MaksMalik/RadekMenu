@@ -29,18 +29,21 @@ export function AddFromDescriptionModal({ date, isOpen, onClose }: AddFromDescri
     setLoading(true);
 
     const apiKey = state.geminiApiKey || '';
-    const result = await estimateMealFromDescription(description.trim(), selectedType, apiKey);
 
-    if (result.success && result.data && !Array.isArray(result.data)) {
-      dispatch({ type: 'ADD_MEAL', date, meal: result.data });
-      showToast('Posiłek dodany pomyślnie!', 'success');
-      setDescription('');
-      onClose();
-    } else {
-      showToast(result.error || 'Nie udało się oszacować posiłku. Spróbuj ponownie.', 'error');
+    try {
+      const result = await estimateMealFromDescription(description.trim(), selectedType, apiKey);
+
+      if (result.success && result.data && !Array.isArray(result.data)) {
+        dispatch({ type: 'ADD_MEAL', date, meal: result.data });
+        showToast('Posiłek dodany pomyślnie!', 'success');
+        setDescription('');
+        onClose();
+      } else {
+        showToast(result.error || 'Nie udało się oszacować posiłku. Spróbuj ponownie.', 'error');
+      }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (

@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Plus, Key } from 'lucide-react';
+import { X, Plus, Key, Eye, EyeOff } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from './Toast';
+import { writeUserStateOrThrow } from '../firebase/firestoreStorage';
 
 interface ProfileDrawerProps {
   isOpen: boolean;
@@ -10,11 +13,64 @@ interface ProfileDrawerProps {
 
 export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
   const { state, dispatch } = useUser();
+  const { user } = useAuth();
+  const { showToast } = useToast();
   const { userProfile } = state;
 
   const [newDislike, setNewDislike] = useState('');
   const [newPreferred, setNewPreferred] = useState('');
   const [newEquipment, setNewEquipment] = useState('');
+
+  // Local editing state for the API key so the stored value is only overwritten
+  // by an explicit, validated save (Requirements 10.1, 10.5, 10.6).
+  const [apiKeyInput, setApiKeyInput] = useState(state.geminiApiKey);
+  const [revealKey, setRevealKey] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
+
+  // Sync the local editor with the stored key whenever the drawer (re)opens or
+  // the stored key changes from elsewhere, and reset the reveal toggle so the
+  // key is masked again after navigating away (Requirement 10.7).
+  useEffect(() => {
+    if (isOpen) {
+      setApiKeyInput(state.geminiApiKey);
+      setRevealKey(false);
+    }
+  }, [isOpen, state.geminiApiKey]);
+
+  const saveApiKey = async () => {
+    const trimmed = apiKeyInput.trim();
+    // Reject empty/whitespace saves: keep the stored key, surface a Polish error
+    // (Requirement 10.5).
+    if (!trimmed) {
+      setApiKeyInput(state.geminiApiKey);
+      showToast('Klucz API jest wymagany.', 'error');
+      return;
+    }
+    // No change — nothing to persist.
+    if (trimmed === state.geminiApiKey) {
+      return;
+    }
+    if (!user) {
+      showToast('Nie udało się zapisać klucza API.', 'error');
+      return;
+    }
+
+    setSavingKey(true);
+    try {
+      // Persist directly so a Firestore rejection is observable here; on success
+      // update app state via the existing SET_API_KEY path (Requirement 10.1).
+      await writeUserStateOrThrow(user.uid, { ...state, geminiApiKey: trimmed });
+      dispatch({ type: 'SET_API_KEY', key: trimmed });
+      showToast('Zapisano klucz API.', 'success');
+    } catch {
+      // Retain the previously stored key and surface a Polish save error
+      // (Requirement 10.6).
+      setApiKeyInput(state.geminiApiKey);
+      showToast('Nie udało się zapisać klucza API.', 'error');
+    } finally {
+      setSavingKey(false);
+    }
+  };
 
   const chipTransition = { type: 'spring', stiffness: 500, damping: 30 } as const;
 
@@ -220,13 +276,40 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                 <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                   <Key size={14} /> Klucz API Gemini
                 </h3>
-                <input
-                  type="password"
-                  value={state.geminiApiKey}
-                  onChange={(e) => dispatch({ type: 'SET_API_KEY', key: e.target.value })}
-                  placeholder="Wklej klucz API..."
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
-                />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type={revealKey ? 'text' : 'password'}
+                      value={apiKeyInput}
+                      onChange={(e) => setApiKeyInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void saveApiKey();
+                        }
+                      }}
+                      placeholder="Wklej klucz API..."
+                      className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setRevealKey((v) => !v)}
+                      aria-label={revealKey ? 'Ukryj klucz API' : 'Pokaż klucz API'}
+                      aria-pressed={revealKey}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {revealKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void saveApiKey()}
+                    disabled={savingKey}
+                    className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-sm font-semibold hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Zapisz
+                  </button>
+                </div>
                 <p className="mt-1.5 text-xs text-slate-400">
                   Pobierz z{' '}
                   <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-emerald-500 underline">

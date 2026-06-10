@@ -7,4 +7,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
   },
+  resolve: {
+    alias: {
+      'virtual:pwa-register': '/src/test/__mocks__/virtual-pwa-register.ts',
+    },
+  },
 })

@@ -13,7 +13,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 font-sans text-slate-800">
       <Header onProfileOpen={() => setProfileOpen(true)} />
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))]">
         <DietView />
       </main>
       <ProfileDrawer isOpen={profileOpen} onClose={() => setProfileOpen(false)} />

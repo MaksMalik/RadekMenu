@@ -39,14 +39,26 @@ export async function readUserState(uid: string): Promise<AppState | null> {
 
 export async function writeUserState(uid: string, state: AppState): Promise<void> {
   try {
-    const { historyStack: _ignored, clipboard: _clip, ...persistable } = state;
-    void _ignored;
-    void _clip;
-    const ref = doc(db, 'users', uid);
-    await setDoc(ref, persistable);
+    await writeUserStateOrThrow(uid, state);
   } catch (e) {
     console.warn('[Firestore] Failed to write user state:', e);
   }
+}
+
+/**
+ * Same persistence as {@link writeUserState}, but propagates (rather than
+ * swallows) a Firestore write rejection so callers can observe failures.
+ *
+ * Used by flows that must react to a failed save — e.g. the Settings API-key
+ * save, which retains the previously stored key and surfaces a Polish error
+ * when the write does not complete (Requirement 10.6).
+ */
+export async function writeUserStateOrThrow(uid: string, state: AppState): Promise<void> {
+  const { historyStack: _ignored, clipboard: _clip, ...persistable } = state;
+  void _ignored;
+  void _clip;
+  const ref = doc(db, 'users', uid);
+  await setDoc(ref, persistable);
 }
 
 export function subscribeToUserState(
