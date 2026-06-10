@@ -25,10 +25,10 @@ export class GeminiClient {
 
     const prompt = buildSwapPrompt(currentMeal, userProfile, userComment, sameDayTitles);
 
-    // Hard kcal constraint: new meal must stay within ±15% of the original.
-    const minKcal = currentMeal.kcal * 0.85;
-    const maxKcal = currentMeal.kcal * 1.15;
-    const MAX_ATTEMPTS = 3;
+    // Hard kcal constraint: new meal must stay within ±5% of the original.
+    const minKcal = currentMeal.kcal * 0.95;
+    const maxKcal = currentMeal.kcal * 1.05;
+    const MAX_ATTEMPTS = 4;
 
     let closest: Meal | null = null;
     let closestDiff = Infinity;

@@ -6,14 +6,14 @@ export function buildSwapPrompt(
   comment?: string,
   sameDayTitles?: string[]
 ): string {
-  const targetKcalMin = Math.round(meal.kcal * 0.85);
-  const targetKcalMax = Math.round(meal.kcal * 1.15);
-  const targetProteinMin = Math.round(meal.protein * 0.85);
-  const targetProteinMax = Math.round(meal.protein * 1.15);
-  const targetCarbsMin = Math.round(meal.carbs * 0.85);
-  const targetCarbsMax = Math.round(meal.carbs * 1.15);
-  const targetFatsMin = Math.round(meal.fats * 0.85);
-  const targetFatsMax = Math.round(meal.fats * 1.15);
+  const targetKcalMin = Math.round(meal.kcal * 0.95);
+  const targetKcalMax = Math.round(meal.kcal * 1.05);
+  const targetProteinMin = Math.round(meal.protein * 0.95);
+  const targetProteinMax = Math.round(meal.protein * 1.05);
+  const targetCarbsMin = Math.round(meal.carbs * 0.95);
+  const targetCarbsMax = Math.round(meal.carbs * 1.05);
+  const targetFatsMin = Math.round(meal.fats * 0.95);
+  const targetFatsMax = Math.round(meal.fats * 1.05);
 
   const dislikesSection = profile.dislikedIngredients.length > 0
     ? `\n\nBEZWZGLĘDNIE ZAKAZANE składniki (NIGDY nie używaj):\n${profile.dislikedIngredients.map(i => `- ${i}`).join('\n')}`
@@ -40,14 +40,21 @@ export function buildSwapPrompt(
     ? `\n\nINNE posiłki zaplanowane na ten sam dzień (NIE proponuj dania, które się z nimi pokrywa lub powtarza — zadbaj o różnorodność dnia):\n${otherSameDay.map(t => `- ${t}`).join('\n')}`
     : '';
 
+  // When the user leaves a comment we treat this as a targeted MODIFICATION of
+  // the existing dish (keep everything, change only what they ask). Without a
+  // comment we propose a different but macro-equivalent alternative.
+  const taskSection = comment
+    ? `Zadanie: Użytkownik chce ZMODYFIKOWAĆ poniższy, KONKRETNY posiłek zgodnie ze swoim komentarzem. To NIE jest budowanie nowego dania od zera — masz ZACHOWAĆ oryginalny posiłek (tę samą bazę, te same pozostałe składniki i sposób przygotowania) i zmienić TYLKO to, o co prosi użytkownik w komentarzu. Przykład: jeśli danie to "kurczak z frytkami" a użytkownik pisze "zamień frytki na coś innego", zostaw kurczaka i całą resztę bez zmian, podmień jedynie frytki. Resztę składników i instrukcji przepisz praktycznie 1:1 (możesz tylko delikatnie skorygować ilości, by utrzymać kalorie i makro).`
+    : `Zadanie: Wymień poniższy posiłek na INNĄ alternatywę o ZBLIŻONYCH makroskładnikach.`;
+
   return `Jesteś polskim asystentem dietetycznym specjalizującym się w planowaniu posiłków dla rekompozycji sylwetki.
 
-Zadanie: Wymień poniższy posiłek na alternatywę o ZBLIŻONYCH makroskładnikach.
+${taskSection}
 
-Aktualny posiłek do wymiany:
+PEŁNE dane oryginalnego posiłku (masz komplet informacji — składniki ORAZ sposób przygotowania; korzystaj z nich i NIE wymyślaj wszystkiego od nowa):
 ${JSON.stringify(meal, null, 2)}
 
-KRYTYCZNIE WAŻNE — TWARDY LIMIT KALORII: nowy posiłek MUSI mieścić się w przedziale ${targetKcalMin}–${targetKcalMax} kcal (czyli ${meal.kcal} kcal ±15%). To jest BEZWZGLĘDNY wymóg — NIE WOLNO go przekroczyć ani zejść poniżej. Zanim podasz odpowiedź, sam policz kalorie składników i upewnij się, że suma mieści się w tym przedziale. Jeśli wychodzi poza zakres, popraw porcje/składniki aż się zmieści.
+KRYTYCZNIE WAŻNE — TWARDY LIMIT KALORII: wynik MUSI mieścić się w przedziale ${targetKcalMin}–${targetKcalMax} kcal (czyli ${meal.kcal} kcal ±5%). To jest BEZWZGLĘDNY wymóg — NIE WOLNO go przekroczyć ani zejść poniżej. Zanim podasz odpowiedź, sam policz kalorie składników i upewnij się, że suma mieści się w tym przedziale. Jeśli wychodzi poza zakres, popraw porcje/składniki aż się zmieści.
 
 Docelowe makroskładniki:
 - Kalorie: ${targetKcalMin}–${targetKcalMax} kcal (TWARDY LIMIT — obowiązkowy)
