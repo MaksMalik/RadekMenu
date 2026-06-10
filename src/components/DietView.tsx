@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, ClipboardPaste, Sparkles, ShoppingCart, ChefHat, Loader2, AlertCircle, Refrigerator, Plus } from 'lucide-react';
+import { Copy, ClipboardPaste, Sparkles, ShoppingCart, ChefHat, Loader2, Refrigerator, Plus, MessageSquarePlus } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
 import { DayGrid } from './DayGrid';
@@ -14,6 +14,7 @@ import { CopyMealModal } from './CopyMealModal';
 import { FridgeModal } from './FridgeModal';
 import { ShoppingListModal } from './ShoppingListModal';
 import { CookingGuideModal } from './CookingGuideModal';
+import { AddFromDescriptionModal } from './AddFromDescriptionModal';
 import { generateFullDay } from '../ai/geminiClient';
 import type { Meal } from '../types';
 
@@ -39,16 +40,14 @@ export function DietView() {
   const [showCooking, setShowCooking] = useState(false);
   const [showFridge, setShowFridge] = useState(false);
   const [showAddMeal, setShowAddMeal] = useState(false);
+  const [showAddFromDescription, setShowAddFromDescription] = useState(false);
   const [copyingMeal, setCopyingMeal] = useState<Meal | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
 
-  const hasApiKey = Boolean(geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY);
-
   const handleGenerateDay = async () => {
-    if (!hasApiKey) return;
     setAiGenerating(true);
 
-    const key = geminiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
+    const key = geminiApiKey || '';
     const result = await generateFullDay(userProfile, key, dayPlans);
 
     if (result.success && Array.isArray(result.data)) {
@@ -80,7 +79,7 @@ export function DietView() {
           whileHover={{ scale: aiGenerating ? 1 : 1.03 }}
           whileTap={{ scale: aiGenerating ? 1 : 0.97 }}
           onClick={handleGenerateDay}
-          disabled={aiGenerating || !hasApiKey}
+          disabled={aiGenerating}
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-200 hover:shadow-lg hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
         >
           {aiGenerating ? (
@@ -94,20 +93,13 @@ export function DietView() {
       {/* Secondary actions */}
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
         <SecondaryButton onClick={() => setShowFridge(true)} icon={<Refrigerator size={14} />} label="Co w lodówce?" highlight />
+        <SecondaryButton onClick={() => setShowAddFromDescription(true)} icon={<MessageSquarePlus size={14} />} label="Dodaj z opisu" highlight />
         <SecondaryButton onClick={() => setShowAddMeal(true)} icon={<Plus size={14} />} label="Dodaj posiłek" />
         <SecondaryButton onClick={() => dispatch({ type: 'COPY_DAY', day: selectedDay })} icon={<Copy size={14} />} label="Kopiuj dzień" />
         <SecondaryButton onClick={() => dispatch({ type: 'PASTE_DAY', targetDay: selectedDay })} disabled={clipboard === null} icon={<ClipboardPaste size={14} />} label="Wklej dzień" />
         <SecondaryButton onClick={() => setShowShopping(true)} icon={<ShoppingCart size={14} />} label="Lista zakupów" />
         <SecondaryButton onClick={() => setShowCooking(true)} icon={<ChefHat size={14} />} label="Przepisy" />
       </div>
-
-      {/* AI warning */}
-      {!hasApiKey && (
-        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
-          <AlertCircle size={16} className="flex-shrink-0" />
-          <span>⚠️ Funkcje AI są wyłączone. Dodaj klucz API Gemini w panelu Profil &amp; Cele.</span>
-        </div>
-      )}
 
       {/* Macro Rings */}
       <MacroRings
@@ -175,6 +167,7 @@ export function DietView() {
       )}
 
       <AddMealModal dayNumber={selectedDay} isOpen={showAddMeal} onClose={() => setShowAddMeal(false)} />
+      <AddFromDescriptionModal dayNumber={selectedDay} isOpen={showAddFromDescription} onClose={() => setShowAddFromDescription(false)} />
       {showFridge && <FridgeModal onClose={() => setShowFridge(false)} />}
       {showShopping && <ShoppingListModal onClose={() => setShowShopping(false)} />}
       {showCooking && <CookingGuideModal onClose={() => setShowCooking(false)} />}

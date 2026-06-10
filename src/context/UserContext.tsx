@@ -2,7 +2,7 @@ import { createContext, useContext, useReducer, useEffect, useRef, type ReactNod
 import type { AppState, AppAction, DayPlan } from '../types';
 import { localStorageAdapter } from '../storage/localStorageAdapter';
 import { getDefaultState } from '../data/seedData';
-import { readUserState, writeUserState } from '../firebase/firestoreStorage';
+import { subscribeToUserState, writeUserState } from '../firebase/firestoreStorage';
 
 const MAX_HISTORY = 10;
 const SHARED_UID = 'shared';
@@ -161,16 +161,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
   });
 
   const hasLoadedRemote = useRef(false);
+  const isLocalChange = useRef(false);
 
-  // Load shared state from Firestore on mount
+  // Subscribe to Firestore realtime updates
   useEffect(() => {
-    void (async () => {
-      const remote = await readUserState(SHARED_UID);
-      if (remote) {
+    const unsub = subscribeToUserState(SHARED_UID, (remote) => {
+      if (remote && !isLocalChange.current) {
         dispatch({ type: 'RESTORE_STATE', state: remote });
       }
       hasLoadedRemote.current = true;
-    })();
+    });
+    return unsub;
   }, []);
 
   // Persist locally always
@@ -178,11 +179,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
     localStorageAdapter.write(state);
   }, [state]);
 
-  // Sync to Firestore (debounced)
+  // Sync to Firestore (debounced), skip echo from own writes
   useEffect(() => {
     if (!hasLoadedRemote.current) return;
     const t = setTimeout(() => {
-      void writeUserState(SHARED_UID, state);
+      isLocalChange.current = true;
+      void writeUserState(SHARED_UID, state).finally(() => {
+        // Give Firestore snapshot time to echo back before accepting remote changes again
+        setTimeout(() => {
+          isLocalChange.current = false;
+        }, 2000);
+      });
     }, 1000);
     return () => clearTimeout(t);
   }, [state]);

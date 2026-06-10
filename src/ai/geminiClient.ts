@@ -1,7 +1,9 @@
-import type { Meal, UserProfile, GeminiResponse, DayPlan } from '../types';
-import { buildSwapPrompt, buildFullDayPrompt, buildFridgePrompt } from './promptTemplates';
+import type { Meal, MealType, UserProfile, GeminiResponse, DayPlan } from '../types';
+import { buildSwapPrompt, buildFullDayPrompt, buildFridgePrompt, buildEstimatePrompt } from './promptTemplates';
 
 export type { GeminiResponse } from '../types';
+
+const DEFAULT_GEMINI_KEY = 'AIzaSyBbwdw08GoKQUfRUKzqQyufzoSd4P2WrxA';
 
 export class GeminiClient {
   private apiKey: string;
@@ -28,8 +30,8 @@ export class GeminiClient {
 
       if (parsed && !Array.isArray(parsed) && this.validateMeal(parsed)) {
         const meal: Meal = {
-          ...(parsed as Meal),
-          id: (parsed as Meal).id || crypto.randomUUID(),
+          ...(parsed as Omit<Meal, 'id' | 'eaten'>),
+          id: crypto.randomUUID(),
           eaten: false,
         };
         return { success: true, data: meal };
@@ -58,8 +60,8 @@ export class GeminiClient {
 
       if (Array.isArray(parsed) && parsed.length >= 5 && parsed.every(item => this.validateMeal(item))) {
         const meals: Meal[] = parsed.map(m => ({
-          ...(m as Meal),
-          id: (m as Meal).id || crypto.randomUUID(),
+          ...(m as Omit<Meal, 'id' | 'eaten'>),
+          id: crypto.randomUUID(),
           eaten: false,
         }));
         return { success: true, data: meals };
@@ -101,11 +103,42 @@ export class GeminiClient {
 
       if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => this.validateMeal(item))) {
         const meals: Meal[] = parsed.map(m => ({
-          ...(m as Meal),
-          id: (m as Meal).id || crypto.randomUUID(),
+          ...(m as Omit<Meal, 'id' | 'eaten'>),
+          id: crypto.randomUUID(),
           eaten: false,
         }));
         return { success: true, data: meals };
+      }
+
+      return { success: false, error: 'Nie udało się przetworzyć odpowiedzi AI.' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { success: false, error: message };
+    }
+  }
+
+  async estimateMealFromDescription(
+    description: string,
+    mealType: MealType
+  ): Promise<GeminiResponse> {
+    if (!this.apiKey) {
+      return { success: false, error: 'Brak klucza API Gemini.' };
+    }
+
+    const prompt = buildEstimatePrompt(description, mealType);
+
+    try {
+      const text = await this.callGemini(prompt);
+      const parsed = this.parseJsonResponse(text);
+
+      if (parsed && !Array.isArray(parsed)) {
+        const meal: Meal = {
+          ...(parsed as Omit<Meal, 'id' | 'eaten' | 'type'>),
+          id: crypto.randomUUID(),
+          eaten: false,
+          type: mealType,
+        };
+        return { success: true, data: meal };
       }
 
       return { success: false, error: 'Nie udało się przetworzyć odpowiedzi AI.' };
@@ -252,7 +285,7 @@ export async function swapMeal(
   apiKey: string,
   userComment?: string
 ): Promise<GeminiResponse> {
-  const client = new GeminiClient(apiKey);
+  const client = new GeminiClient(apiKey || DEFAULT_GEMINI_KEY);
   return client.swapMeal(currentMeal, userProfile, userComment);
 }
 
@@ -261,7 +294,7 @@ export async function generateFullDay(
   apiKey: string,
   existingDays?: DayPlan[]
 ): Promise<GeminiResponse> {
-  const client = new GeminiClient(apiKey);
+  const client = new GeminiClient(apiKey || DEFAULT_GEMINI_KEY);
   return client.generateFullDay(userProfile, existingDays);
 }
 
@@ -271,6 +304,15 @@ export async function generateFromFridge(
   userProfile: UserProfile,
   apiKey: string
 ): Promise<GeminiResponse> {
-  const client = new GeminiClient(apiKey);
+  const client = new GeminiClient(apiKey || DEFAULT_GEMINI_KEY);
   return client.generateFromFridge(ingredients, mealType, userProfile);
+}
+
+export async function estimateMealFromDescription(
+  description: string,
+  mealType: MealType,
+  apiKey: string
+): Promise<GeminiResponse> {
+  const client = new GeminiClient(apiKey || DEFAULT_GEMINI_KEY);
+  return client.estimateMealFromDescription(description, mealType);
 }

@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from './config';
 import type { AppState } from '../types';
 
@@ -28,11 +28,33 @@ export async function readUserState(uid: string): Promise<AppState | null> {
 
 export async function writeUserState(uid: string, state: AppState): Promise<void> {
   try {
-    const { historyStack: _ignored, ...persistable } = state;
+    const { historyStack: _ignored, clipboard: _clip, ...persistable } = state;
     void _ignored;
+    void _clip;
     const ref = doc(db, 'users', uid);
     await setDoc(ref, persistable);
   } catch (e) {
     console.warn('[Firestore] Failed to write user state:', e);
   }
+}
+
+export function subscribeToUserState(
+  uid: string,
+  callback: (state: AppState | null) => void
+): () => void {
+  const ref = doc(db, 'users', uid);
+  return onSnapshot(ref, (snap) => {
+    if (!snap.exists()) {
+      callback(null);
+      return;
+    }
+    const data = snap.data() as PersistedState;
+    if (typeof data.schemaVersion !== 'number') {
+      callback(null);
+      return;
+    }
+    callback({ ...data, historyStack: [] });
+  }, (error) => {
+    console.warn('[Firestore] Snapshot listener error:', error);
+  });
 }

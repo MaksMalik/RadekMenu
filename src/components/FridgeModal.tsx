@@ -29,7 +29,7 @@ export function FridgeModal({ onClose }: FridgeModalProps) {
   const { state, dispatch } = useUser();
   const { showToast } = useToast();
 
-  const apiKey = state.geminiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
+  const apiKey = state.geminiApiKey || '';
 
   const [ingredients, setIngredients] = useState('');
   const [selectedType, setSelectedType] = useState<SelectableType>('dowolny');
@@ -38,7 +38,7 @@ export function FridgeModal({ onClose }: FridgeModalProps) {
   const [dayByOption, setDayByOption] = useState<Record<string, number>>({});
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
-  const canGenerate = ingredients.trim() !== '' && apiKey !== '' && !loading;
+  const canGenerate = ingredients.trim() !== '' && !loading;
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
@@ -115,13 +115,6 @@ export function FridgeModal({ onClose }: FridgeModalProps) {
               <X size={18} className="text-slate-500" />
             </button>
           </div>
-
-          {/* No API key warning */}
-          {apiKey === '' && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
-              Brak klucza API Gemini. Dodaj klucz w profilu, aby generować propozycje.
-            </div>
-          )}
 
           {/* Ingredients textarea */}
           <div className="mb-4">

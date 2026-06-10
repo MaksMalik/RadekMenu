@@ -182,3 +182,30 @@ Odpowiedz WYŁĄCZNIE poprawną tablicą JSON (bez markdown, bez dodatkowego tek
   ...
 ]`;
 }
+
+
+export function buildEstimatePrompt(
+  description: string,
+  mealType: string
+): string {
+  return `Jesteś polskim asystentem dietetycznym. Użytkownik opisuje co zjadł — oszacuj makroskładniki.
+
+Opis posiłku: ${description}
+Typ posiłku: ${mealType}
+
+Zadanie: Oszacuj kalorie i makroskładniki (białko, węglowodany, tłuszcze) dla tego posiłku. Podaj składniki jeśli je znasz. Instrukcja powinna być pusta (użytkownik już to zjadł).
+
+Odpowiedz WYŁĄCZNIE poprawnym obiektem JSON (bez bloków markdown, bez dodatkowego tekstu):
+{
+  "id": "temp",
+  "type": "${mealType}",
+  "title": "Krótka nazwa posiłku",
+  "kcal": liczba,
+  "protein": liczba,
+  "carbs": liczba,
+  "fats": liczba,
+  "ingredients": ["składnik 1", "składnik 2"],
+  "instruction": "",
+  "eaten": true
+}`;
+}
