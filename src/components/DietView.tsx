@@ -37,6 +37,13 @@ export function DietView() {
   const currentDayPlan = dayPlans.find(dp => dp.date === selectedDate);
   const meals = currentDayPlan?.meals ?? [];
 
+  // Day is "complete" when AI supplement shouldn't be offered anymore:
+  // either 5 meals present OR total kcal is within ±2% of the daily target.
+  const totalKcal = meals.reduce((sum, m) => sum + m.kcal, 0);
+  const kcalTarget = userProfile.dailyCalorieTarget;
+  const isWithinKcalRange = totalKcal >= kcalTarget * 0.98 && totalKcal <= kcalTarget * 1.02;
+  const isDayComplete = meals.length >= 5 || (meals.length > 0 && isWithinKcalRange);
+
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
   const [deletingMeal, setDeletingMeal] = useState<Meal | null>(null);
   const [swappingMeal, setSwappingMeal] = useState<Meal | null>(null);
@@ -351,6 +358,7 @@ export function DietView() {
         onToggle={() => setFabOpen(o => !o)}
         hasApiKey={hasApiKey}
         hasMeals={meals.length > 0}
+        isDayComplete={isDayComplete}
         aiGenerating={aiGenerating}
         onAddMeal={() => { setFabOpen(false); setShowAddMeal(true); }}
         onAddFromDescription={() => { setFabOpen(false); setShowAddFromDescription(true); }}
@@ -384,13 +392,14 @@ export function DietView() {
 // ─── Floating Action Button / Speed Dial ────────────────────────────────────
 
 function SpeedDial({
-  open, onToggle, hasApiKey, hasMeals, aiGenerating,
+  open, onToggle, hasApiKey, hasMeals, isDayComplete, aiGenerating,
   onAddMeal, onAddFromDescription, onFridge, onGenerateDay,
 }: {
   open: boolean;
   onToggle: () => void;
   hasApiKey: boolean;
   hasMeals: boolean;
+  isDayComplete: boolean;
   aiGenerating: boolean;
   onAddMeal: () => void;
   onAddFromDescription: () => void;
@@ -401,13 +410,14 @@ function SpeedDial({
     { label: 'Dodaj posiłek', icon: <Plus size={18} />, onClick: onAddMeal, color: 'bg-slate-700', disabled: false },
     { label: 'Dodaj z opisu (AI)', icon: <MessageSquarePlus size={18} />, onClick: onAddFromDescription, color: 'bg-sky-500', disabled: !hasApiKey },
     { label: 'Co w lodówce? (AI)', icon: <Refrigerator size={18} />, onClick: onFridge, color: 'bg-sky-500', disabled: !hasApiKey },
-    {
+    // Hide the generate/supplement option when the day is already complete
+    ...(!isDayComplete ? [{
       label: hasMeals ? 'Uzupełnij dzień (AI)' : 'Wygeneruj cały dzień (AI)',
       icon: aiGenerating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />,
       onClick: onGenerateDay,
       color: 'bg-emerald-500',
       disabled: !hasApiKey || aiGenerating,
-    },
+    }] : []),
   ];
 
   return (

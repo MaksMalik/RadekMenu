@@ -103,8 +103,8 @@ export function buildFullDayPrompt(
   const remKcal = Math.max(profile.dailyCalorieTarget - keptKcal, 0);
   const remProtein = Math.max(profile.dailyProteinTarget - keptProtein, 0);
 
-  const targetKcalMin = Math.round(remKcal * 0.92);
-  const targetKcalMax = Math.round(remKcal * 1.08);
+  const targetKcalMin = Math.round(remKcal * 0.98);
+  const targetKcalMax = Math.round(remKcal * 1.02);
   const targetProteinMin = Math.max(remProtein - 8, 0);
   const targetProteinMax = remProtein + 8;
 
@@ -150,7 +150,7 @@ Profil użytkownika:
 - Cel: ${profile.goal}
 
 Cele makro do UZUPEŁNIENIA przez generowane posiłki (po odjęciu już zaplanowanych):
-- Kalorie: ${targetKcalMin}–${targetKcalMax} kcal
+- Kalorie: ${targetKcalMin}–${targetKcalMax} kcal (TWARDY LIMIT ±2% — SUMA wygenerowanych posiłków MUSI zmieścić się w tym przedziale. Policz kalorie każdego posiłku i upewnij się, że łączna suma MIEŚCI SIĘ w ${targetKcalMin}–${targetKcalMax} kcal. Jeśli nie — skoryguj porcje.)
 - Białko: ${targetProteinMin}–${targetProteinMax} g${keptSection}${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${varietySection}${creativitySection}
 
 Wygeneruj posiłki typu: ${typesToGenerate.join(', ')}.
