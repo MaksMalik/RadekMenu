@@ -13,7 +13,7 @@ import fc from 'fast-check';
 import { GeminiClient } from './geminiClient';
 import { errorMessage } from './geminiLogic';
 import { appReducer } from '../context/UserContext';
-import type { AppState, UserProfile } from '../types';
+import type { AppState } from '../types';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -119,7 +119,7 @@ describe('Property 13: Empty key save is rejected and retains the previous key',
       fc.property(
         emptyOrWhitespaceArb(),
         fc.string({ minLength: 10, maxLength: 40 }),
-        (emptyKey, previousKey) => {
+        (_emptyKey, previousKey) => {
           const state = appStateWithKey(previousKey);
 
           // The reducer always applies the action — it's the caller's job to
@@ -182,7 +182,7 @@ describe('API key transmission (Requirement 10.2)', () => {
     expect(calledUrl).toContain(`key=${testKey}`);
 
     // Verify no other domain is called
-    const allUrls = fetchMock.mock.calls.map(([url]: [string]) => url);
+    const allUrls = fetchMock.mock.calls.map((call) => call[0] as string);
     for (const url of allUrls) {
       expect(url).toMatch(/generativelanguage\.googleapis\.com/);
     }

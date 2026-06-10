@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fc from 'fast-check';
 import { GeminiClient } from './geminiClient';
 import { errorMessage, validateMeal } from './geminiLogic';
-import type { Meal, MealType, UserProfile } from '../types';
+import type { Meal, UserProfile } from '../types';
 
 /**
  * Dedicated error-path property tests for the I/O-orchestrating `GeminiClient`
@@ -16,8 +16,6 @@ import type { Meal, MealType, UserProfile } from '../types';
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-
-const MEAL_TYPES: MealType[] = ['Śniadanie', 'II Śniadanie', 'Obiad', 'Przekąska', 'Kolacja'];
 
 const USER_PROFILE: UserProfile = {
   weight: 80,

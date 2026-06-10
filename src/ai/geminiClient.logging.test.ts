@@ -139,7 +139,8 @@ describe('Property 10: Production builds never log raw AI responses', () => {
 
   it('emits no raw AI response content to any console method when DEV is undefined', async () => {
     // Simulate an environment where the DEV flag cannot be evaluated.
-    vi.stubEnv('DEV', undefined as unknown as string);
+    // @ts-expect-error -- stubbing DEV with empty string to simulate undefined/absent flag
+    vi.stubEnv('DEV', '');
     // Defaults to the safe production behavior (Requirement 9.3).
     expect(isRawLoggingAllowed()).toBe(false);
 

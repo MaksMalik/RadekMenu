@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -11,7 +12,7 @@ afterEach(() => {
   console.error = originalConsoleError;
 });
 
-function ThrowingChild({ message }: { message: string }) {
+function ThrowingChild({ message }: { message: string }): React.ReactNode {
   throw new Error(message);
 }
 
