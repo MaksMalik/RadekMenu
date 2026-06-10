@@ -103,7 +103,6 @@ export function Calendar({
   };
 
   // Key used to drive AnimatePresence transitions.
-  const animKey = collapsed ? `week-${weekRow[0]}` : `month-${monthLabel(effectiveView)}`;
   const headerLabel = collapsed ? monthLabel(selectedDate) : monthLabel(effectiveView);
 
   const renderCell = (date: string, dimOutside: boolean) => {
@@ -202,35 +201,42 @@ export function Calendar({
         ))}
       </div>
 
-      {/* Animated grid: height animates between week and month modes. */}
-      <motion.div
-        animate={{ height: 'auto' }}
-        transition={{ duration: 0.28, ease: 'easeInOut' }}
-        className="overflow-hidden"
-      >
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.div
-            key={animKey}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="space-y-1.5"
-          >
+      {/* Animated grid: height animates smoothly between week and month modes. */}
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.div
+          key={collapsed ? 'week' : 'month'}
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="overflow-hidden"
+        >
+          <div className="space-y-1.5">
             {collapsed ? (
               <div className="grid grid-cols-7 gap-1.5">
                 {weekRow.map((date) => renderCell(date, false))}
               </div>
             ) : (
-              weeks.map((week, wi) => (
-                <div key={wi} className="grid grid-cols-7 gap-1.5">
-                  {week.map((date) => renderCell(date, true))}
-                </div>
-              ))
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.div
+                  key={monthLabel(effectiveView)}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -16 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  className="space-y-1.5"
+                >
+                  {weeks.map((week, wi) => (
+                    <div key={wi} className="grid grid-cols-7 gap-1.5">
+                      {week.map((date) => renderCell(date, true))}
+                    </div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
             )}
-          </motion.div>
-        </AnimatePresence>
-      </motion.div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
 
       {/* Heatmap legend */}
       <div className="flex items-center justify-end gap-1.5 mt-3 text-[10px] text-slate-400">

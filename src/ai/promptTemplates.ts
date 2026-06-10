@@ -1,4 +1,4 @@
-import type { Meal, UserProfile, DayPlan } from '../types';
+import type { Meal, MealType, UserProfile, DayPlan } from '../types';
 
 export function buildSwapPrompt(
   meal: Meal,
@@ -63,14 +63,30 @@ Odpowiedz WYŁĄCZNIE poprawnym obiektem JSON (bez bloków markdown, bez dodatko
 }`;
 }
 
+const MEAL_ORDER: MealType[] = ['Śniadanie', 'II Śniadanie', 'Obiad', 'Przekąska', 'Kolacja'];
+
 export function buildFullDayPrompt(
   profile: UserProfile,
-  existingDays?: DayPlan[]
+  otherDays?: DayPlan[],
+  existingMeals?: Meal[]
 ): string {
-  const targetKcalMin = Math.round(profile.dailyCalorieTarget * 0.95);
-  const targetKcalMax = Math.round(profile.dailyCalorieTarget * 1.05);
-  const targetProteinMin = profile.dailyProteinTarget - 5;
-  const targetProteinMax = profile.dailyProteinTarget + 5;
+  const kept = existingMeals ?? [];
+  const keptKcal = kept.reduce((s, m) => s + m.kcal, 0);
+  const keptProtein = kept.reduce((s, m) => s + m.protein, 0);
+
+  // Remaining targets after accounting for meals already on the day
+  const remKcal = Math.max(profile.dailyCalorieTarget - keptKcal, 0);
+  const remProtein = Math.max(profile.dailyProteinTarget - keptProtein, 0);
+
+  const targetKcalMin = Math.round(remKcal * 0.92);
+  const targetKcalMax = Math.round(remKcal * 1.08);
+  const targetProteinMin = Math.max(remProtein - 8, 0);
+  const targetProteinMax = remProtein + 8;
+
+  // Which meal types are still missing
+  const presentTypes = new Set(kept.map(m => m.type));
+  const missingTypes = MEAL_ORDER.filter(t => !presentTypes.has(t));
+  const typesToGenerate = missingTypes.length > 0 ? missingTypes : MEAL_ORDER;
 
   const dislikesSection = profile.dislikedIngredients.length > 0
     ? `\n\nBEZWZGLĘDNIE ZAKAZANE składniki (NIGDY nie używaj):\n${profile.dislikedIngredients.map(i => `- ${i}`).join('\n')}`
@@ -81,45 +97,44 @@ export function buildFullDayPrompt(
     : '';
 
   const preferredSection = profile.preferredIngredients.length > 0
-    ? `\n\nLubiane składniki (TYLKO luźna inspiracja — NIE musisz ich używać w każdym posiłku; bądź kreatywny i różnorodny, używaj też innych bezpiecznych produktów):\n${profile.preferredIngredients.map(i => `- ${i}`).join('\n')}`
+    ? `\n\nLubiane składniki (TYLKO luźna inspiracja — NIE musisz ich używać w każdym posiłku):\n${profile.preferredIngredients.map(i => `- ${i}`).join('\n')}`
     : '';
 
   const vegetableRuleSection = profile.vegetableRule
     ? `\n\nZasada dotycząca warzyw: ${profile.vegetableRule}`
     : '';
 
-  const varietySection = existingDays && existingDays.length > 0
-    ? `\n\nUnikaj powtarzania tych składników/posiłków z poprzednich dni:\n${existingDays
-        .flatMap(d => d.meals.map(m => m.title))
-        .join(', ')}`
+  const otherDaysTitles = (otherDays ?? []).flatMap(d => d.meals.map(m => m.title));
+  const varietySection = otherDaysTitles.length > 0
+    ? `\n\nUnikaj powtarzania tych dań z innych dni:\n${otherDaysTitles.join(', ')}`
     : '';
+
+  const keptSection = kept.length > 0
+    ? `\n\nWAŻNE — te posiłki SĄ JUŻ zaplanowane na ten dzień (NIE generuj ich ponownie, uwzględnij ich makro w bilansie dnia):\n${kept.map(m => `- ${m.type}: ${m.title} (${m.kcal} kcal, ${m.protein}g białka)`).join('\n')}`
+    : '';
+
+  const creativitySection = `\n\nKREATYWNOŚĆ I RÓŻNORODNOŚĆ (bardzo ważne): Bądź pomysłowy i za każdym razem proponuj INNE, urozmaicone dania — różne smaki, różne techniki przygotowania, inspiracje z różnych kuchni świata. Unikaj schematycznych, powtarzalnych zestawów. Zaskocz ciekawymi, ale realnymi i smacznymi propozycjami.`;
 
   return `Jesteś polskim asystentem dietetycznym specjalizującym się w planowaniu posiłków dla rekompozycji sylwetki.
 
-Zadanie: Wygeneruj pełny plan żywieniowy na jeden dzień składający się z dokładnie 5 posiłków.
+Zadanie: Wygeneruj ${typesToGenerate.length} ${typesToGenerate.length === 1 ? 'posiłek' : 'posiłków'} (typy: ${typesToGenerate.join(', ')}), aby UZUPEŁNIĆ plan dnia do celów makro.
 
 Profil użytkownika:
 - Waga: ${profile.weight} kg
 - Wzrost: ${profile.height} cm
 - Cel: ${profile.goal}
-- Posiłki dziennie: ${profile.mealsPerDay}
 
-Cele makroskładników na cały dzień (suma 5 posiłków):
-- Kalorie: ${targetKcalMin}–${targetKcalMax} kcal (cel: ${profile.dailyCalorieTarget} kcal ±5%)
-- Białko: ${targetProteinMin}–${targetProteinMax} g (cel: ${profile.dailyProteinTarget} g ±5g)
+Cele makro do UZUPEŁNIENIA przez generowane posiłki (po odjęciu już zaplanowanych):
+- Kalorie: ${targetKcalMin}–${targetKcalMax} kcal
+- Białko: ${targetProteinMin}–${targetProteinMax} g${keptSection}${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${varietySection}${creativitySection}
 
-Wymagane typy posiłków (dokładnie 5, w tej kolejności):
-1. Śniadanie
-2. II Śniadanie
-3. Obiad
-4. Przekąska
-5. Kolacja${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${varietySection}
+Wygeneruj posiłki typu: ${typesToGenerate.join(', ')}.
 
-Odpowiedz WYŁĄCZNIE poprawną tablicą JSON (bez bloków markdown, bez dodatkowego tekstu) zawierającą dokładnie 5 obiektów w następującym formacie:
+Odpowiedz WYŁĄCZNIE poprawną tablicą JSON (bez markdown, bez dodatkowego tekstu) z dokładnie ${typesToGenerate.length} obiektami:
 [
   {
     "id": "unikalne-id-1",
-    "type": "Śniadanie",
+    "type": "${typesToGenerate[0]}",
     "title": "Nazwa posiłku",
     "kcal": liczba,
     "protein": liczba,
@@ -129,8 +144,7 @@ Odpowiedz WYŁĄCZNIE poprawną tablicą JSON (bez bloków markdown, bez dodatko
     "instruction": "Instrukcja przygotowania",
     "tip": "Opcjonalna wskazówka smaku",
     "eaten": false
-  },
-  ...
+  }
 ]`;
 }
 

@@ -46,19 +46,20 @@ export class GeminiClient {
 
   async generateFullDay(
     userProfile: UserProfile,
-    existingDays?: DayPlan[]
+    otherDays?: DayPlan[],
+    existingMeals?: Meal[]
   ): Promise<GeminiResponse> {
     if (!this.apiKey) {
       return { success: false, error: 'Brak klucza API Gemini.' };
     }
 
-    const prompt = buildFullDayPrompt(userProfile, existingDays);
+    const prompt = buildFullDayPrompt(userProfile, otherDays, existingMeals);
 
     try {
       const text = await this.callGemini(prompt);
       const parsed = this.parseJsonResponse(text);
 
-      if (Array.isArray(parsed) && parsed.length >= 5 && parsed.every(item => this.validateMeal(item))) {
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => this.validateMeal(item))) {
         const meals: Meal[] = parsed.map(m => ({
           ...(m as Omit<Meal, 'id' | 'eaten'>),
           id: crypto.randomUUID(),
@@ -67,11 +68,6 @@ export class GeminiClient {
         return { success: true, data: meals };
       }
 
-      if (Array.isArray(parsed) && parsed.length < 5) {
-        return { success: false, error: 'AI wygenerowało za mało posiłków (wymagane 5).' };
-      }
-
-      // Debug: log what failed
       if (Array.isArray(parsed)) {
         const failIdx = parsed.findIndex(item => !this.validateMeal(item));
         console.log('[Gemini] Validation failed at index:', failIdx, 'item:', parsed[failIdx]);
@@ -292,10 +288,11 @@ export async function swapMeal(
 export async function generateFullDay(
   userProfile: UserProfile,
   apiKey: string,
-  existingDays?: DayPlan[]
+  otherDays?: DayPlan[],
+  existingMeals?: Meal[]
 ): Promise<GeminiResponse> {
   const client = new GeminiClient(apiKey || DEFAULT_GEMINI_KEY);
-  return client.generateFullDay(userProfile, existingDays);
+  return client.generateFullDay(userProfile, otherDays, existingMeals);
 }
 
 export async function generateFromFridge(

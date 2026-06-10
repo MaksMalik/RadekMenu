@@ -73,16 +73,19 @@ export function MealCard({ meal, onToggleEaten, onEdit, onSwap, onDelete, onCopy
           <motion.h3
             animate={{ color: meal.eaten ? '#94a3b8' : '#1e293b' }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="text-sm font-bold leading-snug"
+            className="text-sm font-bold"
           >
-            <span className="relative inline-block">
+            <span
+              className="bg-no-repeat transition-[background-size] duration-300 ease-in-out"
+              style={{
+                lineHeight: '1.5em',
+                backgroundImage:
+                  'linear-gradient(transparent calc(50% - 1px), #94a3b8 calc(50% - 1px), #94a3b8 calc(50% + 1px), transparent calc(50% + 1px))',
+                backgroundRepeat: 'repeat-y',
+                backgroundSize: meal.eaten ? '100% 1.5em' : '0% 1.5em',
+              }}
+            >
               {meal.title}
-              <motion.div
-                initial={false}
-                animate={{ width: meal.eaten ? '100%' : '0%' }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
-                className="absolute left-0 top-1/2 h-0.5 bg-slate-400"
-              />
             </span>
           </motion.h3>
         </div>
