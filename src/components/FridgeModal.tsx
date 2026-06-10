@@ -5,6 +5,7 @@ import type { Meal, MealType } from '../types';
 import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
 import { generateFromFridge } from '../ai/geminiClient';
+import { formatLong } from '../utils/dateUtils';
 
 interface FridgeModalProps {
   onClose: () => void;
@@ -23,8 +24,6 @@ const TYPE_LABELS: Record<SelectableType, string> = {
   'Kolacja': 'Kolacja',
 };
 
-const DAYS: number[] = Array.from({ length: 14 }, (_, i) => i + 1);
-
 export function FridgeModal({ onClose }: FridgeModalProps) {
   const { state, dispatch } = useUser();
   const { showToast } = useToast();
@@ -35,7 +34,7 @@ export function FridgeModal({ onClose }: FridgeModalProps) {
   const [selectedType, setSelectedType] = useState<SelectableType>('dowolny');
   const [loading, setLoading] = useState(false);
   const [options, setOptions] = useState<Meal[]>([]);
-  const [dayByOption, setDayByOption] = useState<Record<string, number>>({});
+  const [dateByOption, setDateByOption] = useState<Record<string, string>>({});
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
   const canGenerate = ingredients.trim() !== '' && !loading;
@@ -50,9 +49,9 @@ export function FridgeModal({ onClose }: FridgeModalProps) {
     if (result.success && result.data && Array.isArray(result.data)) {
       const meals = result.data;
       setOptions(meals);
-      setDayByOption(
-        meals.reduce<Record<string, number>>((acc, m) => {
-          acc[m.id] = state.selectedDay;
+      setDateByOption(
+        meals.reduce<Record<string, string>>((acc, m) => {
+          acc[m.id] = state.selectedDate;
           return acc;
         }, {})
       );
@@ -65,19 +64,19 @@ export function FridgeModal({ onClose }: FridgeModalProps) {
   };
 
   const handleAdd = (option: Meal) => {
-    const chosenDay = dayByOption[option.id] ?? state.selectedDay;
+    const chosenDate = dateByOption[option.id] ?? state.selectedDate;
     const meal: Meal = {
       ...option,
       id: crypto.randomUUID(),
       eaten: false,
     };
-    dispatch({ type: 'ADD_MEAL', day: chosenDay, meal });
+    dispatch({ type: 'ADD_MEAL', date: chosenDate, meal });
     setAddedIds(prev => {
       const next = new Set(prev);
       next.add(option.id);
       return next;
     });
-    showToast(`Dodano posiłek do dnia ${chosenDay}`, 'success');
+    showToast(`Dodano posiłek: ${formatLong(chosenDate)}`, 'success');
   };
 
   return (
@@ -219,22 +218,17 @@ export function FridgeModal({ onClose }: FridgeModalProps) {
                       <p className="text-xs italic text-slate-500 mb-3">{option.instruction}</p>
                     )}
 
-                    {/* Day picker + add */}
+                    {/* Date picker + add */}
                     <div className="flex items-center gap-2">
-                      <select
-                        value={dayByOption[option.id] ?? state.selectedDay}
+                      <input
+                        type="date"
+                        value={dateByOption[option.id] ?? state.selectedDate}
                         onChange={e =>
-                          setDayByOption(prev => ({ ...prev, [option.id]: Number(e.target.value) }))
+                          setDateByOption(prev => ({ ...prev, [option.id]: e.target.value }))
                         }
                         disabled={isAdded}
                         className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {DAYS.map(d => (
-                          <option key={d} value={d}>
-                            Dzień {d}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       <button
                         onClick={() => handleAdd(option)}
                         disabled={isAdded}
@@ -248,7 +242,7 @@ export function FridgeModal({ onClose }: FridgeModalProps) {
                         ) : (
                           <>
                             <Plus size={16} />
-                            Dodaj do dnia
+                            Dodaj
                           </>
                         )}
                       </button>

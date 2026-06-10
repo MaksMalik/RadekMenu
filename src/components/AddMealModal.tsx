@@ -5,14 +5,14 @@ import { useUser } from '../context/UserContext';
 import type { Meal, MealType } from '../types';
 
 interface AddMealModalProps {
-  dayNumber: number;
+  date: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
 const MEAL_TYPES: MealType[] = ['Śniadanie', 'II Śniadanie', 'Obiad', 'Przekąska', 'Kolacja'];
 
-export function AddMealModal({ dayNumber, isOpen, onClose }: AddMealModalProps) {
+export function AddMealModal({ date, isOpen, onClose }: AddMealModalProps) {
   const { dispatch } = useUser();
 
   const [type, setType] = useState<MealType>('Śniadanie');
@@ -58,7 +58,7 @@ export function AddMealModal({ dayNumber, isOpen, onClose }: AddMealModalProps) 
       ...(trimmedTip !== '' ? { tip: trimmedTip } : {}),
       eaten: false,
     };
-    dispatch({ type: 'ADD_MEAL', day: dayNumber, meal: newMeal });
+    dispatch({ type: 'ADD_MEAL', date, meal: newMeal });
     onClose();
   };
 

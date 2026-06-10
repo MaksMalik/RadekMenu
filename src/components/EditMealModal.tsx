@@ -6,12 +6,12 @@ import type { Meal } from '../types';
 
 interface EditMealModalProps {
   meal: Meal;
-  dayNumber: number;
+  date: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function EditMealModal({ meal, dayNumber, isOpen, onClose }: EditMealModalProps) {
+export function EditMealModal({ meal, date, isOpen, onClose }: EditMealModalProps) {
   const { dispatch } = useUser();
 
   const [title, setTitle] = useState(meal.title);
@@ -44,7 +44,7 @@ export function EditMealModal({ meal, dayNumber, isOpen, onClose }: EditMealModa
       ingredients: ingredients.split('\n').filter((line) => line.trim() !== ''),
       instruction,
     };
-    dispatch({ type: 'UPDATE_MEAL', day: dayNumber, mealId: meal.id, meal: updatedMeal });
+    dispatch({ type: 'UPDATE_MEAL', date, mealId: meal.id, meal: updatedMeal });
     onClose();
   };
 

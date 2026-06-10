@@ -8,12 +8,12 @@ import { swapMeal } from '../ai/geminiClient';
 
 interface SwapMealModalProps {
   meal: Meal;
-  dayNumber: number;
+  date: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function SwapMealModal({ meal, dayNumber, isOpen, onClose }: SwapMealModalProps) {
+export function SwapMealModal({ meal, date, isOpen, onClose }: SwapMealModalProps) {
   const { state, dispatch } = useUser();
   const { showToast } = useToast();
   const [comment, setComment] = useState('');
@@ -25,7 +25,7 @@ export function SwapMealModal({ meal, dayNumber, isOpen, onClose }: SwapMealModa
     const result = await swapMeal(meal, state.userProfile, state.geminiApiKey, comment || undefined);
 
     if (result.success && result.data && !Array.isArray(result.data)) {
-      dispatch({ type: 'REPLACE_MEAL', day: dayNumber, mealId: meal.id, newMeal: result.data });
+      dispatch({ type: 'REPLACE_MEAL', date, mealId: meal.id, newMeal: result.data });
       showToast('Posiłek wymieniony pomyślnie!', 'success');
       onClose();
     } else {

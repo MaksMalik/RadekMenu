@@ -1,7 +1,7 @@
 import type { AppState, StorageInterface } from '../types';
 
 const STORAGE_KEY = 'silhouette-planner-state';
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 /**
  * localStorage adapter implementing StorageInterface.
@@ -87,11 +87,9 @@ class LocalStorageAdapter implements StorageInterface {
 
     return (
       typeof obj['schemaVersion'] === 'number' &&
-      typeof obj['selectedDay'] === 'number' &&
+      typeof obj['selectedDate'] === 'string' &&
       typeof obj['geminiApiKey'] === 'string' &&
       Array.isArray(obj['dayPlans']) &&
-      Array.isArray(obj['workoutPlan']) &&
-      Array.isArray(obj['stepCounts']) &&
       typeof obj['userProfile'] === 'object' &&
       obj['userProfile'] !== null
     );

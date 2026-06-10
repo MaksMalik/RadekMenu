@@ -5,16 +5,16 @@ import type { Meal } from '../types';
 
 interface ConfirmDeleteDialogProps {
   meal: Meal;
-  dayNumber: number;
+  date: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function ConfirmDeleteDialog({ meal, dayNumber, isOpen, onClose }: ConfirmDeleteDialogProps) {
+export function ConfirmDeleteDialog({ meal, date, isOpen, onClose }: ConfirmDeleteDialogProps) {
   const { dispatch } = useUser();
 
   const handleConfirm = () => {
-    dispatch({ type: 'DELETE_MEAL', day: dayNumber, mealId: meal.id });
+    dispatch({ type: 'DELETE_MEAL', date, mealId: meal.id });
     onClose();
   };
 

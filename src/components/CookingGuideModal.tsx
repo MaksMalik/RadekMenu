@@ -1,28 +1,51 @@
 import { useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ChefHat, Lightbulb } from 'lucide-react';
+import { X, ChefHat, Lightbulb, CheckSquare, Square } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { generateCookingGuide } from '../utils/cookingGuide';
+import { formatLong } from '../utils/dateUtils';
+import type { CookingGuideEntry } from '../types';
 
 interface CookingGuideModalProps {
   onClose: () => void;
 }
 
-const DAY_NAMES = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Ndz'];
-
 export function CookingGuideModal({ onClose }: CookingGuideModalProps) {
   const { state } = useUser();
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
 
-  const toggleDay = (day: number) => {
-    setSelectedDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
-    );
+  // Dates that have meals, sorted ascending.
+  const availablePlans = useMemo(
+    () => [...state.dayPlans].sort((a, b) => a.date.localeCompare(b.date)),
+    [state.dayPlans]
+  );
+
+  const toggleDate = (date: string) => {
+    setSelectedDates(prev => {
+      const next = new Set(prev);
+      if (next.has(date)) {
+        next.delete(date);
+      } else {
+        next.add(date);
+      }
+      return next;
+    });
+  };
+
+  const allDaysSelected =
+    availablePlans.length > 0 && selectedDates.size === availablePlans.length;
+
+  const toggleAllDays = () => {
+    if (allDaysSelected) {
+      setSelectedDates(new Set());
+    } else {
+      setSelectedDates(new Set(availablePlans.map(dp => dp.date)));
+    }
   };
 
   const selectedDayPlans = useMemo(
-    () => state.dayPlans.filter(dp => selectedDays.includes(dp.day)),
-    [state.dayPlans, selectedDays]
+    () => availablePlans.filter(dp => selectedDates.has(dp.date)),
+    [availablePlans, selectedDates]
   );
 
   const cookingGuide = useMemo(
@@ -30,14 +53,16 @@ export function CookingGuideModal({ onClose }: CookingGuideModalProps) {
     [selectedDayPlans]
   );
 
-  // Group entries by day
-  const groupedByDay = useMemo(() => {
-    const groups: Map<number, typeof cookingGuide> = new Map();
+  // Group entries by date
+  const groupedByDate = useMemo(() => {
+    const groups = new Map<string, CookingGuideEntry[]>();
     for (const entry of cookingGuide) {
-      if (!groups.has(entry.day)) {
-        groups.set(entry.day, []);
+      const existing = groups.get(entry.date);
+      if (existing) {
+        existing.push(entry);
+      } else {
+        groups.set(entry.date, [entry]);
       }
-      groups.get(entry.day)!.push(entry);
     }
     return groups;
   }, [cookingGuide]);
@@ -76,89 +101,111 @@ export function CookingGuideModal({ onClose }: CookingGuideModalProps) {
             </button>
           </div>
 
-          {/* Day Selector */}
-          <div className="mb-5">
-            <p className="text-sm font-medium text-slate-700 mb-2">Wybierz dni:</p>
-            <div className="grid grid-cols-7 gap-2">
-              {Array.from({ length: 14 }, (_, i) => i + 1).map(day => (
+          {/* Date Selector */}
+          {availablePlans.length > 0 ? (
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-slate-700">Wybierz dni:</p>
                 <button
-                  key={day}
-                  onClick={() => toggleDay(day)}
-                  className={`px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                    selectedDays.includes(day)
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
-                  }`}
+                  onClick={toggleAllDays}
+                  className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
                 >
-                  <div>{DAY_NAMES[(day - 1) % 7]}</div>
-                  <div className="text-[10px] opacity-75">Dz. {day}</div>
+                  {allDaysSelected ? 'Odznacz wszystkie' : 'Zaznacz wszystkie'}
                 </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Cooking Guide */}
-          {cookingGuide.length > 0 ? (
-            <div className="space-y-6">
-              {Array.from(groupedByDay.entries()).map(([day, entries]) => (
-                <div key={day}>
-                  {/* Day heading */}
-                  <h3 className="text-sm font-semibold text-emerald-700 uppercase tracking-wide mb-3 pb-2 border-b border-emerald-100">
-                    {entries[0].dayName} — Dzień {day}
-                  </h3>
-
-                  <div className="space-y-4">
-                    {entries.map((entry, entryIdx) => (
-                      <div
-                        key={`${day}-${entryIdx}`}
-                        className="bg-slate-50 rounded-2xl p-4"
-                      >
-                        {/* Meal title */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                            {entry.mealType}
-                          </span>
-                          <span className="text-sm font-semibold text-slate-800">
-                            {entry.mealTitle}
-                          </span>
-                        </div>
-
-                        {/* Numbered steps */}
-                        <ol className="space-y-1.5 ml-1">
-                          {entry.steps.map((step, stepIdx) => (
-                            <li
-                              key={stepIdx}
-                              className="flex gap-2 text-sm text-slate-700"
-                            >
-                              <span className="font-mono text-xs font-semibold text-emerald-600 mt-0.5 flex-shrink-0">
-                                {stepIdx + 1}.
-                              </span>
-                              <span>{step}</span>
-                            </li>
-                          ))}
-                        </ol>
-
-                        {/* Tip */}
-                        {entry.tip && (
-                          <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3">
-                            <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                            <p className="text-xs text-amber-800">
-                              {entry.tip}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+              </div>
+              <div className="space-y-1.5">
+                {availablePlans.map(dp => (
+                  <button
+                    key={dp.date}
+                    onClick={() => toggleDate(dp.date)}
+                    className={`flex items-center gap-2 w-full text-left py-2 px-3 rounded-xl border transition-colors ${
+                      selectedDates.has(dp.date)
+                        ? 'bg-emerald-50 border-emerald-300'
+                        : 'bg-white border-slate-200 hover:border-emerald-300'
+                    }`}
+                  >
+                    {selectedDates.has(dp.date) ? (
+                      <CheckSquare className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    ) : (
+                      <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    )}
+                    <span className="text-sm text-slate-700 capitalize">
+                      {formatLong(dp.date)}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-slate-500 text-center py-6">
-              {selectedDays.length === 0
-                ? 'Wybierz dni, aby wygenerować przewodnik kulinarny.'
-                : 'Brak przepisów dla wybranych dni.'}
+              Brak dni z posiłkami. Dodaj posiłki, aby wygenerować przewodnik kulinarny.
             </p>
+          )}
+
+          {/* Cooking Guide */}
+          {availablePlans.length > 0 && (
+            cookingGuide.length > 0 ? (
+              <div className="space-y-6">
+                {Array.from(groupedByDate.entries()).map(([date, entries]) => (
+                  <div key={date}>
+                    {/* Date heading */}
+                    <h3 className="text-sm font-semibold text-emerald-700 uppercase tracking-wide mb-3 pb-2 border-b border-emerald-100 capitalize">
+                      {entries[0].dayLabel}
+                    </h3>
+
+                    <div className="space-y-4">
+                      {entries.map((entry, entryIdx) => (
+                        <div
+                          key={`${date}-${entryIdx}`}
+                          className="bg-slate-50 rounded-2xl p-4"
+                        >
+                          {/* Meal title */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                              {entry.mealType}
+                            </span>
+                            <span className="text-sm font-semibold text-slate-800">
+                              {entry.mealTitle}
+                            </span>
+                          </div>
+
+                          {/* Numbered steps */}
+                          <ol className="space-y-1.5 ml-1">
+                            {entry.steps.map((step, stepIdx) => (
+                              <li
+                                key={stepIdx}
+                                className="flex gap-2 text-sm text-slate-700"
+                              >
+                                <span className="font-mono text-xs font-semibold text-emerald-600 mt-0.5 flex-shrink-0">
+                                  {stepIdx + 1}.
+                                </span>
+                                <span>{step}</span>
+                              </li>
+                            ))}
+                          </ol>
+
+                          {/* Tip */}
+                          {entry.tip && (
+                            <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3">
+                              <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                              <p className="text-xs text-amber-800">
+                                {entry.tip}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500 text-center py-6">
+                {selectedDates.size === 0
+                  ? 'Wybierz dni, aby wygenerować przewodnik kulinarny.'
+                  : 'Brak przepisów dla wybranych dni.'}
+              </p>
+            )
           )}
 
           {/* Footer */}

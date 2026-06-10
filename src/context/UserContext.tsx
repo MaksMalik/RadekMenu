@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
-import type { AppState, AppAction, DayPlan } from '../types';
+import type { AppState, AppAction, DayPlan, Meal } from '../types';
 import { localStorageAdapter } from '../storage/localStorageAdapter';
 import { getDefaultState } from '../data/seedData';
 import { subscribeToUserState, writeUserState } from '../firebase/firestoreStorage';
@@ -9,7 +9,7 @@ const MAX_HISTORY = 10;
 
 function pushHistory(state: AppState): DayPlan[][] {
   const snapshot = state.dayPlans.map(dp => ({
-    day: dp.day,
+    date: dp.date,
     meals: dp.meals.map(m => ({ ...m })),
   }));
   const newStack = [...state.historyStack, snapshot];
@@ -19,87 +19,89 @@ function pushHistory(state: AppState): DayPlan[][] {
   return newStack;
 }
 
+/** Get the plan for a date, or undefined. */
+function findPlan(state: AppState, date: string): DayPlan | undefined {
+  return state.dayPlans.find(dp => dp.date === date);
+}
+
+/**
+ * Upsert a day plan: apply `updater` to the existing plan's meals (or empty),
+ * and produce a new dayPlans array. Empty days are pruned.
+ */
+function upsertDay(
+  state: AppState,
+  date: string,
+  updater: (meals: Meal[]) => Meal[]
+): DayPlan[] {
+  const existing = findPlan(state, date);
+  const newMeals = updater(existing ? existing.meals : []);
+  let found = false;
+  const next = state.dayPlans
+    .map(dp => {
+      if (dp.date !== date) return dp;
+      found = true;
+      return { ...dp, meals: newMeals };
+    })
+    .filter(dp => dp.meals.length > 0);
+  if (!found && newMeals.length > 0) {
+    next.push({ date, meals: newMeals });
+  }
+  return next;
+}
+
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    case 'SELECT_DAY':
-      return { ...state, selectedDay: action.day };
+    case 'SELECT_DATE':
+      return { ...state, selectedDate: action.date };
 
     case 'TOGGLE_EATEN': {
-      const dayPlans = state.dayPlans.map(dp => {
-        if (dp.day !== action.day) return dp;
-        return {
-          ...dp,
-          meals: dp.meals.map(m =>
-            m.id === action.mealId ? { ...m, eaten: !m.eaten } : m
-          ),
-        };
-      });
+      const dayPlans = upsertDay(state, action.date, meals =>
+        meals.map(m => (m.id === action.mealId ? { ...m, eaten: !m.eaten } : m))
+      );
       return { ...state, dayPlans };
     }
 
     case 'UPDATE_MEAL': {
       const historyStack = pushHistory(state);
-      const dayPlans = state.dayPlans.map(dp => {
-        if (dp.day !== action.day) return dp;
-        return {
-          ...dp,
-          meals: dp.meals.map(m =>
-            m.id === action.mealId ? { ...action.meal } : m
-          ),
-        };
-      });
+      const dayPlans = upsertDay(state, action.date, meals =>
+        meals.map(m => (m.id === action.mealId ? { ...action.meal } : m))
+      );
       return { ...state, dayPlans, historyStack };
     }
 
     case 'DELETE_MEAL': {
       const historyStack = pushHistory(state);
-      const dayPlans = state.dayPlans.map(dp => {
-        if (dp.day !== action.day) return dp;
-        return {
-          ...dp,
-          meals: dp.meals.filter(m => m.id !== action.mealId),
-        };
-      });
+      const dayPlans = upsertDay(state, action.date, meals =>
+        meals.filter(m => m.id !== action.mealId)
+      );
       return { ...state, dayPlans, historyStack };
     }
 
     case 'REPLACE_MEAL': {
       const historyStack = pushHistory(state);
-      const dayPlans = state.dayPlans.map(dp => {
-        if (dp.day !== action.day) return dp;
-        return {
-          ...dp,
-          meals: dp.meals.map(m =>
-            m.id === action.mealId ? { ...action.newMeal } : m
-          ),
-        };
-      });
+      const dayPlans = upsertDay(state, action.date, meals =>
+        meals.map(m => (m.id === action.mealId ? { ...action.newMeal } : m))
+      );
       return { ...state, dayPlans, historyStack };
     }
 
     case 'SET_DAY_MEALS': {
       const historyStack = pushHistory(state);
-      const dayPlans = state.dayPlans.map(dp => {
-        if (dp.day !== action.day) return dp;
-        return { ...dp, meals: action.meals };
-      });
+      const dayPlans = upsertDay(state, action.date, () => action.meals);
       return { ...state, dayPlans, historyStack };
     }
 
     case 'ADD_MEAL': {
       const historyStack = pushHistory(state);
-      const dayPlans = state.dayPlans.map(dp => {
-        if (dp.day !== action.day) return dp;
-        return { ...dp, meals: [...dp.meals, action.meal] };
-      });
+      const dayPlans = upsertDay(state, action.date, meals => [...meals, action.meal]);
       return { ...state, dayPlans, historyStack };
     }
 
     case 'COPY_DAY': {
-      const sourcePlan = state.dayPlans.find(dp => dp.day === action.day);
-      if (!sourcePlan) return state;
+      const sourcePlan = findPlan(state, action.date);
+      if (!sourcePlan || sourcePlan.meals.length === 0) return state;
       const clipboard: DayPlan = {
-        day: sourcePlan.day,
+        date: sourcePlan.date,
         meals: sourcePlan.meals.map(m => ({ ...m })),
       };
       return { ...state, clipboard };
@@ -108,22 +110,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'PASTE_DAY': {
       if (!state.clipboard) return state;
       const historyStack = pushHistory(state);
-      const dayPlans = state.dayPlans.map(dp => {
-        if (dp.day !== action.targetDay) return dp;
-        const pastedMeals = state.clipboard!.meals.map(m => ({
-          ...m,
-          id: crypto.randomUUID(),
-        }));
-        return { ...dp, meals: pastedMeals };
-      });
-      return { ...state, dayPlans, historyStack };
-    }
-
-    case 'UPDATE_STEPS': {
-      const stepCounts = state.stepCounts.map(sc =>
-        sc.day === action.day ? { ...sc, count: action.count } : sc
+      const clip = state.clipboard;
+      const dayPlans = upsertDay(state, action.targetDate, () =>
+        clip.meals.map(m => ({ ...m, id: crypto.randomUUID() }))
       );
-      return { ...state, stepCounts };
+      return { ...state, dayPlans, historyStack };
     }
 
     case 'SET_API_KEY':

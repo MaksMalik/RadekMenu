@@ -15,7 +15,7 @@ export interface Meal {
 }
 
 export interface DayPlan {
-  day: number; // 1–14
+  date: string; // ISO date 'YYYY-MM-DD'
   meals: Meal[];
 }
 
@@ -39,31 +39,10 @@ export interface UserProfile {
   vegetableRule: string;
 }
 
-export interface WorkoutDay {
-  id: string;
-  name: string;
-  exercises: Exercise[];
-}
-
-export interface Exercise {
-  name: string;
-  sets: number;
-  reps: string;
-  equipment: string;
-}
-
-export interface StepCount {
-  day: number;
-  count: number;
-  target: number;
-}
-
 export interface AppState {
   userProfile: UserProfile;
   dayPlans: DayPlan[];
-  workoutPlan: WorkoutDay[];
-  stepCounts: StepCount[];
-  selectedDay: number;
+  selectedDate: string; // ISO date
   clipboard: DayPlan | null;
   historyStack: DayPlan[][];
   geminiApiKey: string;
@@ -77,16 +56,15 @@ export interface StorageInterface {
 }
 
 export type AppAction =
-  | { type: 'SELECT_DAY'; day: number }
-  | { type: 'TOGGLE_EATEN'; day: number; mealId: string }
-  | { type: 'UPDATE_MEAL'; day: number; mealId: string; meal: Meal }
-  | { type: 'DELETE_MEAL'; day: number; mealId: string }
-  | { type: 'REPLACE_MEAL'; day: number; mealId: string; newMeal: Meal }
-  | { type: 'SET_DAY_MEALS'; day: number; meals: Meal[] }
-  | { type: 'ADD_MEAL'; day: number; meal: Meal }
-  | { type: 'COPY_DAY'; day: number }
-  | { type: 'PASTE_DAY'; targetDay: number }
-  | { type: 'UPDATE_STEPS'; day: number; count: number }
+  | { type: 'SELECT_DATE'; date: string }
+  | { type: 'TOGGLE_EATEN'; date: string; mealId: string }
+  | { type: 'UPDATE_MEAL'; date: string; mealId: string; meal: Meal }
+  | { type: 'DELETE_MEAL'; date: string; mealId: string }
+  | { type: 'REPLACE_MEAL'; date: string; mealId: string; newMeal: Meal }
+  | { type: 'SET_DAY_MEALS'; date: string; meals: Meal[] }
+  | { type: 'ADD_MEAL'; date: string; meal: Meal }
+  | { type: 'COPY_DAY'; date: string }
+  | { type: 'PASTE_DAY'; targetDate: string }
   | { type: 'SET_API_KEY'; key: string }
   | { type: 'UPDATE_PROFILE'; profile: Partial<UserProfile> }
   | { type: 'UNDO' }
@@ -99,8 +77,8 @@ export interface GeminiResponse {
 }
 
 export interface CookingGuideEntry {
-  day: number;
-  dayName: string;
+  date: string;
+  dayLabel: string;
   mealType: MealType;
   mealTitle: string;
   steps: string[];

@@ -7,14 +7,14 @@ import { useToast } from './Toast';
 import { estimateMealFromDescription } from '../ai/geminiClient';
 
 interface AddFromDescriptionModalProps {
-  dayNumber: number;
+  date: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
 const MEAL_TYPES: MealType[] = ['Śniadanie', 'II Śniadanie', 'Obiad', 'Przekąska', 'Kolacja'];
 
-export function AddFromDescriptionModal({ dayNumber, isOpen, onClose }: AddFromDescriptionModalProps) {
+export function AddFromDescriptionModal({ date, isOpen, onClose }: AddFromDescriptionModalProps) {
   const { state, dispatch } = useUser();
   const { showToast } = useToast();
 
@@ -32,7 +32,7 @@ export function AddFromDescriptionModal({ dayNumber, isOpen, onClose }: AddFromD
     const result = await estimateMealFromDescription(description.trim(), selectedType, apiKey);
 
     if (result.success && result.data && !Array.isArray(result.data)) {
-      dispatch({ type: 'ADD_MEAL', day: dayNumber, meal: result.data });
+      dispatch({ type: 'ADD_MEAL', date, meal: result.data });
       showToast('Posiłek dodany pomyślnie!', 'success');
       setDescription('');
       onClose();

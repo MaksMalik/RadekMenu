@@ -3,27 +3,49 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, ShoppingCart, CheckSquare, Square } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { generateShoppingList } from '../utils/shoppingList';
+import { formatLong } from '../utils/dateUtils';
 
 interface ShoppingListModalProps {
   onClose: () => void;
 }
 
-const DAY_NAMES = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Ndz'];
-
 export function ShoppingListModal({ onClose }: ShoppingListModalProps) {
   const { state } = useUser();
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
 
-  const toggleDay = (day: number) => {
-    setSelectedDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
-    );
+  // Dates that have meals, sorted ascending.
+  const availablePlans = useMemo(
+    () => [...state.dayPlans].sort((a, b) => a.date.localeCompare(b.date)),
+    [state.dayPlans]
+  );
+
+  const toggleDate = (date: string) => {
+    setSelectedDates(prev => {
+      const next = new Set(prev);
+      if (next.has(date)) {
+        next.delete(date);
+      } else {
+        next.add(date);
+      }
+      return next;
+    });
+  };
+
+  const allDaysSelected =
+    availablePlans.length > 0 && selectedDates.size === availablePlans.length;
+
+  const toggleAllDays = () => {
+    if (allDaysSelected) {
+      setSelectedDates(new Set());
+    } else {
+      setSelectedDates(new Set(availablePlans.map(dp => dp.date)));
+    }
   };
 
   const selectedDayPlans = useMemo(
-    () => state.dayPlans.filter(dp => selectedDays.includes(dp.day)),
-    [state.dayPlans, selectedDays]
+    () => availablePlans.filter(dp => selectedDates.has(dp.date)),
+    [availablePlans, selectedDates]
   );
 
   const shoppingList = useMemo(
@@ -87,76 +109,98 @@ export function ShoppingListModal({ onClose }: ShoppingListModalProps) {
             </button>
           </div>
 
-          {/* Day Selector */}
-          <div className="mb-5">
-            <p className="text-sm font-medium text-slate-700 mb-2">Wybierz dni:</p>
-            <div className="grid grid-cols-7 gap-2">
-              {Array.from({ length: 14 }, (_, i) => i + 1).map(day => (
+          {/* Date Selector */}
+          {availablePlans.length > 0 ? (
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-slate-700">Wybierz dni:</p>
                 <button
-                  key={day}
-                  onClick={() => toggleDay(day)}
-                  className={`px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                    selectedDays.includes(day)
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
-                  }`}
-                >
-                  <div>{DAY_NAMES[(day - 1) % 7]}</div>
-                  <div className="text-[10px] opacity-75">Dz. {day}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Shopping List */}
-          {shoppingList.length > 0 ? (
-            <div>
-              {/* Toggle all */}
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                <span className="text-sm text-slate-500">
-                  {checkedItems.size} / {shoppingList.length} zaznaczono
-                </span>
-                <button
-                  onClick={toggleAll}
+                  onClick={toggleAllDays}
                   className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
                 >
-                  {allChecked ? 'Odznacz' : 'Zaznacz wszystkie'}
+                  {allDaysSelected ? 'Odznacz wszystkie' : 'Zaznacz wszystkie'}
                 </button>
               </div>
-
-              {/* Items */}
-              <ul className="space-y-1.5">
-                {shoppingList.map(item => (
-                  <li key={item}>
-                    <button
-                      onClick={() => toggleItem(item)}
-                      className="flex items-center gap-2 w-full text-left py-1 px-2 rounded-lg hover:bg-slate-50 transition-colors"
-                    >
-                      {checkedItems.has(item) ? (
-                        <CheckSquare className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                      ) : (
-                        <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                      )}
-                      <span
-                        className={`text-sm ${
-                          checkedItems.has(item)
-                            ? 'text-slate-400 line-through'
-                            : 'text-slate-700'
-                        }`}
-                      >
-                        {item}
-                      </span>
-                    </button>
-                  </li>
+              <div className="space-y-1.5">
+                {availablePlans.map(dp => (
+                  <button
+                    key={dp.date}
+                    onClick={() => toggleDate(dp.date)}
+                    className={`flex items-center gap-2 w-full text-left py-2 px-3 rounded-xl border transition-colors ${
+                      selectedDates.has(dp.date)
+                        ? 'bg-emerald-50 border-emerald-300'
+                        : 'bg-white border-slate-200 hover:border-emerald-300'
+                    }`}
+                  >
+                    {selectedDates.has(dp.date) ? (
+                      <CheckSquare className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    ) : (
+                      <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    )}
+                    <span className="text-sm text-slate-700 capitalize">
+                      {formatLong(dp.date)}
+                    </span>
+                  </button>
                 ))}
-              </ul>
+              </div>
             </div>
           ) : (
             <p className="text-sm text-slate-500 text-center py-6">
-              {selectedDays.length === 0
-                ? 'Wybierz dni, aby wygenerować listę zakupów.'
-                : 'Brak składników dla wybranych dni.'}
+              Brak dni z posiłkami. Dodaj posiłki, aby wygenerować listę zakupów.
             </p>
+          )}
+
+          {/* Shopping List */}
+          {availablePlans.length > 0 && (
+            shoppingList.length > 0 ? (
+              <div>
+                {/* Toggle all */}
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                  <span className="text-sm text-slate-500">
+                    {checkedItems.size} / {shoppingList.length} zaznaczono
+                  </span>
+                  <button
+                    onClick={toggleAll}
+                    className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                  >
+                    {allChecked ? 'Odznacz' : 'Zaznacz wszystkie'}
+                  </button>
+                </div>
+
+                {/* Items */}
+                <ul className="space-y-1.5">
+                  {shoppingList.map(item => (
+                    <li key={item}>
+                      <button
+                        onClick={() => toggleItem(item)}
+                        className="flex items-center gap-2 w-full text-left py-1 px-2 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        {checkedItems.has(item) ? (
+                          <CheckSquare className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        ) : (
+                          <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        )}
+                        <span
+                          className={`text-sm ${
+                            checkedItems.has(item)
+                              ? 'text-slate-400 line-through'
+                              : 'text-slate-700'
+                          }`}
+                        >
+                          {item}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500 text-center py-6">
+                {selectedDates.size === 0
+                  ? 'Wybierz dni, aby wygenerować listę zakupów.'
+                  : 'Brak składników dla wybranych dni.'}
+              </p>
+            )
           )}
 
           {/* Footer */}
