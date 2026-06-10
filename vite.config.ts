@@ -9,6 +9,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'foodus-logo.png'],
+      workbox: {
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/assets\//, /^\/sw\.js$/, /^\/workbox-/],
+        cleanupOutdatedCaches: true,
+      },
       manifest: {
         name: 'Fooduś — Planer Diety',
         short_name: 'Fooduś',
