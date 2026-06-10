@@ -2,12 +2,10 @@ import { createContext, useContext, useReducer, useEffect, useRef, type ReactNod
 import type { AppState, AppAction, DayPlan } from '../types';
 import { localStorageAdapter } from '../storage/localStorageAdapter';
 import { getDefaultState } from '../data/seedData';
-import { useAuth } from './AuthContext';
 import { readUserState, writeUserState } from '../firebase/firestoreStorage';
 
-// ─── History Helpers ─────────────────────────────────────────────────────────
-
 const MAX_HISTORY = 10;
+const SHARED_UID = 'shared';
 
 function pushHistory(state: AppState): DayPlan[][] {
   const snapshot = state.dayPlans.map(dp => ({
@@ -20,8 +18,6 @@ function pushHistory(state: AppState): DayPlan[][] {
   }
   return newStack;
 }
-
-// ─── Reducer ─────────────────────────────────────────────────────────────────
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -114,7 +110,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const historyStack = pushHistory(state);
       const dayPlans = state.dayPlans.map(dp => {
         if (dp.day !== action.targetDay) return dp;
-        // Assign new IDs to pasted meals to avoid duplicate IDs
         const pastedMeals = state.clipboard!.meals.map(m => ({
           ...m,
           id: crypto.randomUUID(),
@@ -152,8 +147,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
   }
 }
 
-// ─── Context ─────────────────────────────────────────────────────────────────
-
 interface UserContextValue {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
@@ -161,58 +154,38 @@ interface UserContextValue {
 
 const UserContext = createContext<UserContextValue | null>(null);
 
-// ─── Provider ────────────────────────────────────────────────────────────────
-
 export function UserProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
   const [state, dispatch] = useReducer(appReducer, undefined, () => {
     const saved = localStorageAdapter.read();
     return saved ?? getDefaultState();
   });
 
-  // Track the currently-loaded uid to avoid re-loading / cross-writes
-  const loadedUidRef = useRef<string | null>(null);
   const hasLoadedRemote = useRef(false);
 
-  // Always cache locally
+  // Load shared state from Firestore on mount
+  useEffect(() => {
+    void (async () => {
+      const remote = await readUserState(SHARED_UID);
+      if (remote) {
+        dispatch({ type: 'RESTORE_STATE', state: remote });
+      }
+      hasLoadedRemote.current = true;
+    })();
+  }, []);
+
+  // Persist locally always
   useEffect(() => {
     localStorageAdapter.write(state);
   }, [state]);
 
-  // When user logs in, load their cloud state (once per uid)
+  // Sync to Firestore (debounced)
   useEffect(() => {
-    if (!user) {
-      loadedUidRef.current = null;
-      hasLoadedRemote.current = false;
-      return;
-    }
-    if (loadedUidRef.current === user.uid) return;
-
-    loadedUidRef.current = user.uid;
-    hasLoadedRemote.current = false;
-
-    void (async () => {
-      const remote = await readUserState(user.uid);
-      if (remote) {
-        dispatch({ type: 'RESTORE_STATE', state: remote });
-      } else {
-        // No cloud doc yet — seed it with current local state
-        await writeUserState(user.uid, state);
-      }
-      hasLoadedRemote.current = true;
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  // Sync state to Firestore (debounced) whenever it changes while logged in
-  useEffect(() => {
-    if (!user || !hasLoadedRemote.current) return;
-    const uid = user.uid;
+    if (!hasLoadedRemote.current) return;
     const t = setTimeout(() => {
-      void writeUserState(uid, state);
-    }, 800);
+      void writeUserState(SHARED_UID, state);
+    }, 1000);
     return () => clearTimeout(t);
-  }, [state, user]);
+  }, [state]);
 
   return (
     <UserContext.Provider value={{ state, dispatch }}>
@@ -220,8 +193,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     </UserContext.Provider>
   );
 }
-
-// ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useUser(): UserContextValue {
   const context = useContext(UserContext);
