@@ -4,7 +4,7 @@ import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDDghJYWtr_WEXptOF1t5CB8Rvj0tAVuLY',
-  authDomain: 'radek-menu.vercel.app',
+  authDomain: 'studio-4570303735-1a1b7.firebaseapp.com',
   projectId: 'studio-4570303735-1a1b7',
   storageBucket: 'studio-4570303735-1a1b7.firebasestorage.app',
   messagingSenderId: '364237142982',

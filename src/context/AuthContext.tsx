@@ -1,8 +1,7 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import {
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   signOut as fbSignOut,
   onAuthStateChanged,
   type User,
@@ -23,17 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle the redirect result when user comes back from Google
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
-          console.log('[Auth] Redirect sign-in successful');
-        }
-      })
-      .catch((err) => {
-        console.warn('[Auth] getRedirectResult error:', err);
-      });
-
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -41,14 +29,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub;
   }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
-  };
+    await signInWithPopup(auth, provider);
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await fbSignOut(auth);
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
