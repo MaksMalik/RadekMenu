@@ -1,5 +1,12 @@
 import type { Meal, MealType, UserProfile, DayPlan } from '../types';
 
+/**
+ * Shared instruction enforcing a consistent ingredient format so the shopping
+ * list can correctly aggregate quantities across meals/days.
+ */
+const INGREDIENT_FORMAT_RULE =
+  'FORMAT SKŁADNIKÓW (obowiązkowy): każdy składnik podaj jako "nazwa (ilość jednostka)", gdzie ilość to liczba, a jednostka to g, ml lub szt. Przykłady: "banan (1 szt.)", "ryż (200g)", "mleko (50ml)", "chleb tostowy (2 szt.)". Używaj jednolitych, prostych nazw (bez ilości w samej nazwie), aby tę samą rzecz dało się zsumować między posiłkami. Nie łącz kilku produktów w jeden składnik (wyjątek: przyprawy).';
+
 export function buildSwapPrompt(
   meal: Meal,
   profile: UserProfile,
@@ -8,6 +15,7 @@ export function buildSwapPrompt(
 ): string {
   const targetKcalMin = Math.round(meal.kcal * 0.95);
   const targetKcalMax = Math.round(meal.kcal * 1.05);
+
   const targetProteinMin = Math.round(meal.protein * 0.95);
   const targetProteinMax = Math.round(meal.protein * 1.05);
   const targetCarbsMin = Math.round(meal.carbs * 0.95);
@@ -62,6 +70,8 @@ Docelowe makroskładniki:
 - Węglowodany: ${targetCarbsMin}–${targetCarbsMax} g
 - Tłuszcze: ${targetFatsMin}–${targetFatsMax} g${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${commentSection}${sameDaySection}
 
+${INGREDIENT_FORMAT_RULE}
+
 Odpowiedz WYŁĄCZNIE poprawnym obiektem JSON (bez bloków markdown, bez dodatkowego tekstu) w następującym formacie:
 {
   "id": "unikalne-id",
@@ -71,7 +81,7 @@ Odpowiedz WYŁĄCZNIE poprawnym obiektem JSON (bez bloków markdown, bez dodatko
   "protein": liczba,
   "carbs": liczba,
   "fats": liczba,
-  "ingredients": ["składnik 1", "składnik 2"],
+  "ingredients": ["nazwa (ilość jednostka)", "..."],
   "instruction": "Instrukcja przygotowania",
   "tip": "Opcjonalna wskazówka smaku",
   "eaten": false
@@ -145,6 +155,8 @@ Cele makro do UZUPEŁNIENIA przez generowane posiłki (po odjęciu już zaplanow
 
 Wygeneruj posiłki typu: ${typesToGenerate.join(', ')}.
 
+${INGREDIENT_FORMAT_RULE}
+
 Odpowiedz WYŁĄCZNIE poprawną tablicą JSON (bez markdown, bez dodatkowego tekstu) z dokładnie ${typesToGenerate.length} obiektami:
 [
   {
@@ -155,7 +167,7 @@ Odpowiedz WYŁĄCZNIE poprawną tablicą JSON (bez markdown, bez dodatkowego tek
     "protein": liczba,
     "carbs": liczba,
     "fats": liczba,
-    "ingredients": ["składnik 1", "składnik 2"],
+    "ingredients": ["nazwa (ilość jednostka)", "..."],
     "instruction": "Instrukcja przygotowania",
     "tip": "Opcjonalna wskazówka smaku",
     "eaten": false
@@ -193,6 +205,8 @@ Zadanie: Zaproponuj 3 różne pomysły na posiłki, które można przygotować G
 
 Dla każdej propozycji oblicz przybliżone makroskładniki (kalorie, białko, węglowodany, tłuszcze).${dislikesSection}${equipmentSection}${vegetableRuleSection}
 
+${INGREDIENT_FORMAT_RULE}
+
 Odpowiedz WYŁĄCZNIE poprawną tablicą JSON (bez markdown, bez dodatkowego tekstu) z 3 obiektami:
 [
   {
@@ -203,7 +217,7 @@ Odpowiedz WYŁĄCZNIE poprawną tablicą JSON (bez markdown, bez dodatkowego tek
     "protein": liczba,
     "carbs": liczba,
     "fats": liczba,
-    "ingredients": ["składnik 1", "składnik 2"],
+    "ingredients": ["nazwa (ilość jednostka)", "..."],
     "instruction": "Instrukcja przygotowania",
     "tip": "Opcjonalna wskazówka",
     "eaten": false
