@@ -132,7 +132,7 @@ export function DietView() {
 
       {/* Selected day header + kebab menu */}
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-slate-800 capitalize">{formatLong(selectedDate)}</h2>
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 capitalize">{formatLong(selectedDate)}</h2>
         <div className="relative" ref={moreRef}>
           <button
             onClick={() => setMoreOpen(o => !o)}
@@ -148,7 +148,7 @@ export function DietView() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -6, scale: 0.97 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 z-30 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden"
+                className="absolute right-0 z-30 mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden"
               >
                 <MenuItem onClick={() => { setMoreOpen(false); dispatch({ type: 'COPY_DAY', date: selectedDate }); showToast('Skopiowano dzień', 'success'); }} icon={<Copy size={15} />} label="Kopiuj dzień" />
                 <MenuItem onClick={() => { setMoreOpen(false); dispatch({ type: 'PASTE_DAY', targetDate: selectedDate }); }} icon={<ClipboardPaste size={15} />} label="Wklej dzień" disabled={clipboard === null} />
@@ -181,7 +181,7 @@ export function DietView() {
       )}
 
       {/* Per-day tab bar */}
-      <div className="flex w-full gap-1 rounded-full bg-slate-100 p-1 mt-2">
+      <div className="flex w-full gap-1 rounded-full bg-slate-100 dark:bg-slate-800 p-1 mt-2">
         {([
           { id: 'posilki', label: 'Posiłki', icon: <UtensilsCrossed size={15} /> },
           { id: 'zakupy', label: 'Zakupy', icon: <ShoppingCart size={15} /> },
@@ -199,10 +199,10 @@ export function DietView() {
                 <motion.div
                   layoutId="dayTabIndicator"
                   transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-                  className="absolute inset-0 rounded-full bg-white shadow-sm"
+                  className="absolute inset-0 rounded-full bg-white dark:bg-slate-700 shadow-sm"
                 />
               )}
-              <span className={`relative z-10 inline-flex items-center gap-1.5 ${active ? 'text-emerald-700' : 'text-slate-500'}`}>
+              <span className={`relative z-10 inline-flex items-center gap-1.5 ${active ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
                 {tab.icon} {tab.label}
               </span>
             </button>
@@ -229,7 +229,7 @@ export function DietView() {
 
             <div className="space-y-3">
               {meals.length === 0 ? (
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center">
+                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-8 text-center">
                   <div className="mx-auto w-20 h-20 mb-4">
                     <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
                       {/* Plate */}
@@ -242,8 +242,8 @@ export function DietView() {
                       <path d="M62 20 L62 38 M62 20 C65 20 65 28 62 28" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
-                  <p className="text-slate-500 font-medium mb-1">Pusty talerz!</p>
-                  <p className="text-slate-400 text-sm">Dodaj posiłki lub wygeneruj plan przez AI</p>
+                  <p className="text-slate-500 dark:text-slate-300 font-medium mb-1">Pusty talerz!</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-sm">Dodaj posiłki lub wygeneruj plan przez AI</p>
                 </div>
               ) : (
                 meals.map(meal => (
@@ -270,7 +270,7 @@ export function DietView() {
             exit={{ opacity: 0, x: -12 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-5">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
               {dayShoppingList.length === 0 ? (
                 <p className="text-slate-400 text-sm text-center py-6">
                   Brak składników — dodaj posiłki na ten dzień.
@@ -298,7 +298,7 @@ export function DietView() {
                             )}
                             <span
                               className={`text-sm ${
-                                bought ? 'text-slate-400 line-through' : 'text-slate-700'
+                                bought ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-700 dark:text-slate-200'
                               }`}
                             >
                               {item}
@@ -323,21 +323,21 @@ export function DietView() {
             transition={{ duration: 0.2 }}
           >
             {dayCookingGuide.length === 0 ? (
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center">
-                <p className="text-slate-400 text-sm">Brak przepisów — dodaj posiłki na ten dzień.</p>
+              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-8 text-center">
+                <p className="text-slate-400 dark:text-slate-500 text-sm">Brak przepisów — dodaj posiłki na ten dzień.</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {dayCookingGuide.map((entry, entryIdx) => (
                   <div
                     key={`${entry.date}-${entry.mealType}-${entryIdx}`}
-                    className="bg-white rounded-3xl shadow-sm border border-slate-100 p-4"
+                    className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-4"
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
                         {entry.mealType}
                       </span>
-                      <span className="text-sm font-semibold text-slate-800">
+                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                         {entry.mealTitle}
                       </span>
                     </div>
@@ -464,7 +464,7 @@ function SpeedDial({
                   disabled={a.disabled}
                   className="flex items-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <span className="px-3 py-1.5 rounded-xl bg-white shadow-md text-sm font-medium text-slate-700 whitespace-nowrap">
+                  <span className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 shadow-md text-sm font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
                     {a.label}
                   </span>
                   <span className={`w-12 h-12 rounded-full ${a.color} text-white flex items-center justify-center shadow-lg`}>

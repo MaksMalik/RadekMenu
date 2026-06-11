@@ -36,8 +36,8 @@ export function MealCard({ meal, onToggleEaten, onEdit, onSwap, onDelete, onCopy
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={`rounded-2xl bg-white shadow-sm border transition-all ${
-        meal.eaten ? 'opacity-60 border-emerald-200 bg-emerald-50/30' : 'border-slate-100'
+      className={`rounded-2xl bg-white dark:bg-slate-800 shadow-sm border transition-all ${
+        meal.eaten ? 'opacity-60 border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-900/20' : 'border-slate-100 dark:border-slate-700'
       }`}
     >
       {/* Header — always visible, click to expand */}

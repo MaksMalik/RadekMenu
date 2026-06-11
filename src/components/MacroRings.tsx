@@ -50,7 +50,7 @@ export function MacroRings({ meals, calorieTarget, proteinTarget }: MacroRingsPr
               r={R}
               fill="none"
               strokeWidth={STROKE}
-              className="stroke-slate-100"
+              className="stroke-slate-100 dark:stroke-slate-700"
             />
             <motion.circle
               cx={RING / 2}
@@ -68,10 +68,10 @@ export function MacroRings({ meals, calorieTarget, proteinTarget }: MacroRingsPr
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <Flame size={18} className={over ? 'text-rose-500 mb-0.5' : 'text-emerald-500 mb-0.5'} />
-            <span className="text-2xl font-extrabold text-slate-800 leading-none">
+            <span className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 leading-none">
               {Math.round(totals.kcal)}
             </span>
-            <span className="text-[11px] text-slate-400 mt-0.5">/ {calorieTarget} kcal</span>
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">/ {calorieTarget} kcal</span>
             <span className={`text-[11px] font-bold mt-0.5 ${over ? 'text-rose-500' : 'text-emerald-500'}`}>
               {kcalPercent}%
             </span>
@@ -140,7 +140,7 @@ function MiniRing({
             r={MINI_R}
             fill="none"
             strokeWidth={MINI_STROKE}
-            className="stroke-slate-100"
+            className="stroke-slate-100 dark:stroke-slate-700"
           />
           <motion.circle
             cx={MINI / 2}
@@ -157,13 +157,13 @@ function MiniRing({
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xs font-bold text-slate-800">
+          <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
             {Math.round(value)}
-            <span className="text-[9px] font-normal text-slate-400">{unit}</span>
+            <span className="text-[9px] font-normal text-slate-400 dark:text-slate-500">{unit}</span>
           </span>
         </div>
       </div>
-      <span className="text-[11px] font-medium text-slate-600 mt-1.5">{label}</span>
+      <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 mt-1.5">{label}</span>
       <span className={`text-[10px] font-semibold ${over ? 'text-rose-500' : 'text-slate-400'}`}>
         {percent}%
       </span>
