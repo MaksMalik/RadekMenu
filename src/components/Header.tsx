@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { Undo2, Settings, LogOut } from 'lucide-react';
+import { Undo2, Settings, LogOut, Moon, Sun } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useAuth } from '../context/AuthContext';
+import { useState, useEffect } from 'react';
 
 interface HeaderProps {
   onProfileOpen: () => void;
@@ -12,8 +13,20 @@ export function Header({ onProfileOpen }: HeaderProps) {
   const { user, signOut } = useAuth();
   const canUndo = state.historyStack.length > 0;
 
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [dark]);
+
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 pt-[env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-50 bg-gradient-to-b from-white/90 to-white/70 dark:from-slate-800/90 dark:to-slate-800/70 backdrop-blur-md border-b border-slate-100 dark:border-slate-700 pt-[env(safe-area-inset-top)]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <img src="/foodus-logo.png" alt="Smakołysz" className="w-10 h-10 rounded-xl" />
@@ -23,6 +36,15 @@ export function Header({ onProfileOpen }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-1.5">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setDark(d => !d)}
+            className="p-2 rounded-xl text-slate-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-700 transition-colors"
+            title={dark ? 'Tryb jasny' : 'Tryb ciemny'}
+          >
+            {dark ? <Sun size={17} /> : <Moon size={17} />}
+          </motion.button>
+
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => dispatch({ type: 'UNDO' })}
@@ -49,17 +71,20 @@ export function Header({ onProfileOpen }: HeaderProps) {
               <img
                 src={user.photoURL}
                 alt={user.displayName ?? 'Avatar'}
-                className="w-8 h-8 rounded-full border border-slate-200"
+                className="w-8 h-8 rounded-full ring-2 ring-emerald-200 shadow-sm"
                 referrerPolicy="no-referrer"
               />
             )}
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => void signOut()}
-              className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-sm font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="group relative p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
               title="Wyloguj"
             >
-              <LogOut size={16} />
+              <LogOut size={14} />
+              <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-[10px] font-medium text-white bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                Wyloguj
+              </span>
             </motion.button>
           </div>
         </div>

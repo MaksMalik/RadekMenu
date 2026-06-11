@@ -170,7 +170,7 @@ export function DietView() {
           whileTap={{ scale: aiGenerating || !hasApiKey ? 1 : 0.99 }}
           onClick={handleGenerateDay}
           disabled={aiGenerating || !hasApiKey}
-          className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-200 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+          className="relative overflow-hidden w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-200 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-white/20 after:to-transparent after:animate-shimmer"
         >
           {aiGenerating ? (
             <><Loader2 size={16} className="animate-spin" /> Generuję plan...</>
@@ -181,7 +181,7 @@ export function DietView() {
       )}
 
       {/* Per-day tab bar */}
-      <div className="flex w-full gap-1 rounded-full bg-slate-100 p-1">
+      <div className="flex w-full gap-1 rounded-full bg-slate-100 p-1 mt-2">
         {([
           { id: 'posilki', label: 'Posiłki', icon: <UtensilsCrossed size={15} /> },
           { id: 'zakupy', label: 'Zakupy', icon: <ShoppingCart size={15} /> },
@@ -230,7 +230,20 @@ export function DietView() {
             <div className="space-y-3">
               {meals.length === 0 ? (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center">
-                  <p className="text-slate-400 text-sm">Brak posiłków na ten dzień. Użyj przycisku + lub wygeneruj plan przez AI.</p>
+                  <div className="mx-auto w-20 h-20 mb-4">
+                    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                      {/* Plate */}
+                      <circle cx="40" cy="42" r="28" stroke="#cbd5e1" strokeWidth="2" fill="#f8fafc" />
+                      <circle cx="40" cy="42" r="18" stroke="#e2e8f0" strokeWidth="1.5" fill="none" />
+                      <circle cx="40" cy="42" r="4" fill="#e2e8f0" />
+                      {/* Fork (left) */}
+                      <path d="M18 20 L18 38 M16 20 L16 28 M18 20 L18 28 M20 20 L20 28" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
+                      {/* Knife (right) */}
+                      <path d="M62 20 L62 38 M62 20 C65 20 65 28 62 28" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <p className="text-slate-500 font-medium mb-1">Pusty talerz!</p>
+                  <p className="text-slate-400 text-sm">Dodaj posiłki lub wygeneruj plan przez AI</p>
                 </div>
               ) : (
                 meals.map(meal => (

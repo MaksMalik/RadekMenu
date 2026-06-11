@@ -149,7 +149,7 @@ export function Calendar({
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-4 sm:p-5">
+    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 sm:p-5">
       {/* Header row */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <h2 className="text-base sm:text-lg font-bold text-slate-800">{headerLabel}</h2>

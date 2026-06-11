@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Flame, Beef, Wheat, Droplet } from 'lucide-react';
+import { Flame } from 'lucide-react';
 import type { Meal } from '../types';
 import { computeTotals, computeEatenTotals } from '../utils/macros';
 
@@ -9,10 +9,17 @@ interface MacroRingsProps {
   proteinTarget: number;
 }
 
-const RING = 132;
-const STROKE = 12;
+/* Main ring dimensions */
+const RING = 150;
+const STROKE = 10;
 const R = (RING - STROKE) / 2;
 const C = 2 * Math.PI * R;
+
+/* Mini ring dimensions */
+const MINI = 50;
+const MINI_STROKE = 6;
+const MINI_R = (MINI - MINI_STROKE) / 2;
+const MINI_C = 2 * Math.PI * MINI_R;
 
 export function MacroRings({ meals, calorieTarget, proteinTarget }: MacroRingsProps) {
   const totals = computeTotals(meals);
@@ -26,11 +33,17 @@ export function MacroRings({ meals, calorieTarget, proteinTarget }: MacroRingsPr
   const over = totals.kcal > calorieTarget;
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-5">
+    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
       {/* Calorie donut */}
-      <div className="flex flex-col items-center mb-5">
+      <div className="flex flex-col items-center mb-6">
         <div className="relative" style={{ width: RING, height: RING }}>
           <svg width={RING} height={RING} className="-rotate-90">
+            <defs>
+              <linearGradient id="emerald-ring-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#34d399" />
+                <stop offset="100%" stopColor="#059669" />
+              </linearGradient>
+            </defs>
             <circle
               cx={RING / 2}
               cy={RING / 2}
@@ -46,7 +59,7 @@ export function MacroRings({ meals, calorieTarget, proteinTarget }: MacroRingsPr
               fill="none"
               strokeWidth={STROKE}
               strokeLinecap="round"
-              className={over ? 'stroke-rose-500' : 'stroke-amber-400'}
+              stroke={over ? '#f43f5e' : 'url(#emerald-ring-gradient)'}
               strokeDasharray={C}
               initial={{ strokeDashoffset: C }}
               animate={{ strokeDashoffset: C * (1 - kcalPct) }}
@@ -54,12 +67,12 @@ export function MacroRings({ meals, calorieTarget, proteinTarget }: MacroRingsPr
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <Flame size={18} className="text-amber-500 mb-0.5" />
+            <Flame size={18} className={over ? 'text-rose-500 mb-0.5' : 'text-emerald-500 mb-0.5'} />
             <span className="text-2xl font-extrabold text-slate-800 leading-none">
               {Math.round(totals.kcal)}
             </span>
             <span className="text-[11px] text-slate-400 mt-0.5">/ {calorieTarget} kcal</span>
-            <span className={`text-[11px] font-bold mt-0.5 ${over ? 'text-rose-500' : 'text-amber-500'}`}>
+            <span className={`text-[11px] font-bold mt-0.5 ${over ? 'text-rose-500' : 'text-emerald-500'}`}>
               {kcalPercent}%
             </span>
           </div>
@@ -71,63 +84,89 @@ export function MacroRings({ meals, calorieTarget, proteinTarget }: MacroRingsPr
         )}
       </div>
 
-      {/* Macro bars */}
-      <div className="space-y-3">
-        <MacroBar
-          icon={<Beef size={14} />} label="Białko" iconBg="bg-emerald-50 text-emerald-600"
-          value={totals.protein} target={proteinTarget} barClass="bg-emerald-500" unit="g"
+      {/* Mini macro rings */}
+      <div className="flex items-center justify-center gap-6">
+        <MiniRing
+          value={totals.protein}
+          target={proteinTarget}
+          label="Białko"
+          color="#10b981"
+          unit="g"
         />
-        <MacroBar
-          icon={<Wheat size={14} />} label="Węglowodany" iconBg="bg-sky-50 text-sky-600"
-          value={totals.carbs} target={carbTarget} barClass="bg-sky-500" unit="g"
+        <MiniRing
+          value={totals.carbs}
+          target={carbTarget}
+          label="Węgle"
+          color="#0ea5e9"
+          unit="g"
         />
-        <MacroBar
-          icon={<Droplet size={14} />} label="Tłuszcze" iconBg="bg-violet-50 text-violet-600"
-          value={totals.fats} target={fatTarget} barClass="bg-violet-500" unit="g"
+        <MiniRing
+          value={totals.fats}
+          target={fatTarget}
+          label="Tłuszcze"
+          color="#8b5cf6"
+          unit="g"
         />
       </div>
     </div>
   );
 }
 
-function MacroBar({
-  icon, label, iconBg, value, target, barClass, unit,
+function MiniRing({
+  value,
+  target,
+  label,
+  color,
+  unit,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  iconBg: string;
   value: number;
   target: number;
-  barClass: string;
+  label: string;
+  color: string;
   unit: string;
 }) {
-  const pct = target > 0 ? Math.min((value / target) * 100, 100) : 0;
+  const pct = target > 0 ? Math.min(value / target, 1) : 0;
   const percent = target > 0 ? Math.round((value / target) * 100) : 0;
   const over = value > target;
+  const strokeColor = over ? '#f43f5e' : color;
 
   return (
-    <div className="flex items-center gap-3">
-      <span className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
-        {icon}
-      </span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline justify-between mb-1">
-          <span className="text-sm font-medium text-slate-600">{label}</span>
-          <span className="text-sm font-bold text-slate-800">
+    <div className="flex flex-col items-center">
+      <div className="relative" style={{ width: MINI, height: MINI }}>
+        <svg width={MINI} height={MINI} className="-rotate-90">
+          <circle
+            cx={MINI / 2}
+            cy={MINI / 2}
+            r={MINI_R}
+            fill="none"
+            strokeWidth={MINI_STROKE}
+            className="stroke-slate-100"
+          />
+          <motion.circle
+            cx={MINI / 2}
+            cy={MINI / 2}
+            r={MINI_R}
+            fill="none"
+            strokeWidth={MINI_STROKE}
+            strokeLinecap="round"
+            stroke={strokeColor}
+            strokeDasharray={MINI_C}
+            initial={{ strokeDashoffset: MINI_C }}
+            animate={{ strokeDashoffset: MINI_C * (1 - pct) }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-bold text-slate-800">
             {Math.round(value)}
-            <span className="text-xs font-normal text-slate-400"> / {target} {unit}</span>
+            <span className="text-[9px] font-normal text-slate-400">{unit}</span>
           </span>
         </div>
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
-            className={`h-full rounded-full ${over ? 'bg-rose-500' : barClass}`}
-          />
-        </div>
       </div>
-      <span className="text-[11px] font-semibold text-slate-400 w-9 text-right">{percent}%</span>
+      <span className="text-[11px] font-medium text-slate-600 mt-1.5">{label}</span>
+      <span className={`text-[10px] font-semibold ${over ? 'text-rose-500' : 'text-slate-400'}`}>
+        {percent}%
+      </span>
     </div>
   );
 }
