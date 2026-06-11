@@ -145,20 +145,20 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 h-full w-[420px] max-w-[90vw] bg-white shadow-xl z-[60] rounded-l-3xl overflow-y-auto"
+            className="fixed right-0 top-0 h-full w-[420px] max-w-[90vw] bg-white dark:bg-slate-900 shadow-xl z-[60] rounded-l-3xl overflow-y-auto"
           >
             <div className="p-6 space-y-6">
               {/* Header */}
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-800">Profil &amp; Cele</h2>
-                <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100 transition-colors">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Profil &amp; Cele</h2>
+                <button onClick={onClose} className="p-1.5 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                   <X size={20} />
                 </button>
               </div>
 
               {/* Editable metrics */}
               <section>
-                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-3">
                   Dane & Cele
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
@@ -187,7 +187,7 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
               {/* Disliked ingredients */}
               <section>
-                <h3 className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-3">
+                <h3 className="text-sm font-semibold text-red-400 dark:text-red-400 uppercase tracking-wider mb-3">
                   🚫 AI ma unikać
                 </h3>
                 <div className="flex gap-2 mb-2">
@@ -197,11 +197,11 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                     onChange={(e) => setNewDislike(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addDislike()}
                     placeholder="Dodaj składnik..."
-                    className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300"
+                    className="flex-1 px-3 py-2 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300"
                   />
                   <button
                     onClick={addDislike}
-                    className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
+                    className="p-2 bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-300 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
                   >
                     <Plus size={16} />
                   </button>
@@ -216,10 +216,10 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.6 }}
                         transition={chipTransition}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs"
                       >
                         {item}
-                        <button onClick={() => removeDislike(item)} className="hover:text-red-900">
+                        <button onClick={() => removeDislike(item)} className="hover:text-red-900 dark:hover:text-red-100">
                           <X size={12} />
                         </button>
                       </motion.span>
@@ -230,7 +230,7 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
               {/* Preferred ingredients */}
               <section>
-                <h3 className="text-sm font-semibold text-emerald-500 uppercase tracking-wider mb-3">
+                <h3 className="text-sm font-semibold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider mb-3">
                   ✅ Lubiane składniki
                 </h3>
                 <div className="flex gap-2 mb-2">
@@ -240,11 +240,11 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                     onChange={(e) => setNewPreferred(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addPreferred()}
                     placeholder="Dodaj składnik..."
-                    className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+                    className="flex-1 px-3 py-2 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
                   />
                   <button
                     onClick={addPreferred}
-                    className="p-2 bg-emerald-50 text-emerald-500 rounded-xl hover:bg-emerald-100 transition-colors"
+                    className="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 dark:text-emerald-300 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
                   >
                     <Plus size={16} />
                   </button>
@@ -259,10 +259,10 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.6 }}
                         transition={chipTransition}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full text-xs"
                       >
                         {item}
-                        <button onClick={() => removePreferred(item)} className="hover:text-emerald-900">
+                        <button onClick={() => removePreferred(item)} className="hover:text-emerald-900 dark:hover:text-emerald-100">
                           <X size={12} />
                         </button>
                       </motion.span>
@@ -273,7 +273,7 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
               {/* Gemini API Key */}
               <section>
-                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                   <Key size={14} /> Klucz API Gemini
                 </h3>
                 <div className="flex gap-2">
@@ -289,14 +289,14 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                         }
                       }}
                       placeholder="Wklej klucz API..."
-                      className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
+                      className="w-full px-3 py-2 pr-10 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
                     />
                     <button
                       type="button"
                       onClick={() => setRevealKey((v) => !v)}
                       aria-label={revealKey ? 'Ukryj klucz API' : 'Pokaż klucz API'}
                       aria-pressed={revealKey}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                     >
                       {revealKey ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -305,12 +305,12 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                     type="button"
                     onClick={() => void saveApiKey()}
                     disabled={savingKey}
-                    className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-sm font-semibold hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 rounded-xl text-sm font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Zapisz
                   </button>
                 </div>
-                <p className="mt-1.5 text-xs text-slate-400">
+                <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
                   Pobierz z{' '}
                   <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-emerald-500 underline">
                     https://aistudio.google.com/apikey
@@ -320,7 +320,7 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
               {/* Equipment */}
               <section>
-                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-3">
                   Sprzęt
                 </h3>
                 <div className="flex gap-2 mb-2">
@@ -330,11 +330,11 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                     onChange={(e) => setNewEquipment(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addEquipment()}
                     placeholder="Dodaj sprzęt..."
-                    className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+                    className="flex-1 px-3 py-2 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
                   />
                   <button
                     onClick={addEquipment}
-                    className="p-2 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-colors"
+                    className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   >
                     <Plus size={16} />
                   </button>
@@ -349,10 +349,10 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.6 }}
                         transition={chipTransition}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 rounded-full text-sm text-slate-600"
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-sm text-slate-600 dark:text-slate-300"
                       >
                         {eq}
-                        <button onClick={() => removeEquipment(eq)} className="hover:text-slate-900">
+                        <button onClick={() => removeEquipment(eq)} className="hover:text-slate-900 dark:hover:text-slate-100">
                           <X size={12} />
                         </button>
                       </motion.span>
@@ -373,7 +373,7 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div>
-      <label className="block text-xs text-slate-500 mb-1">{label}</label>
+      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{label}</label>
       <input
         type="number"
         value={value}
@@ -381,7 +381,7 @@ function NumberField({ label, value, onChange }: { label: string; value: number;
           const v = parseInt(e.target.value, 10);
           if (!isNaN(v) && v > 0) onChange(v);
         }}
-        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        className="w-full px-3 py-2 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
       />
     </div>
   );

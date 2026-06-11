@@ -124,7 +124,7 @@ export function DietView() {
 
       {/* API key warning */}
       {!hasApiKey && (
-        <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-800">
+        <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 rounded-2xl text-sm text-amber-800 dark:text-amber-300">
           <AlertTriangle size={16} className="shrink-0 text-amber-500" />
           Dodaj klucz API Gemini w ustawieniach, aby korzystać z funkcji AI.
         </div>
@@ -137,7 +137,7 @@ export function DietView() {
           <button
             onClick={() => setMoreOpen(o => !o)}
             aria-label="Więcej opcji"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <MoreVertical size={18} />
           </button>
@@ -148,11 +148,11 @@ export function DietView() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -6, scale: 0.97 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 z-30 mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden"
+                className="absolute right-0 z-30 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden"
               >
                 <MenuItem onClick={() => { setMoreOpen(false); dispatch({ type: 'COPY_DAY', date: selectedDate }); showToast('Skopiowano dzień', 'success'); }} icon={<Copy size={15} />} label="Kopiuj dzień" />
                 <MenuItem onClick={() => { setMoreOpen(false); dispatch({ type: 'PASTE_DAY', targetDate: selectedDate }); }} icon={<ClipboardPaste size={15} />} label="Wklej dzień" disabled={clipboard === null} />
-                <div className="h-px bg-slate-100" />
+                <div className="h-px bg-slate-100 dark:bg-slate-800" />
                 <MenuItem onClick={() => { setMoreOpen(false); setShowShopping(true); }} icon={<ShoppingCart size={15} />} label="Zakupy (kilka dni)" />
                 <MenuItem onClick={() => { setMoreOpen(false); setShowCooking(true); }} icon={<ChefHat size={15} />} label="Przepisy (kilka dni)" />
               </motion.div>
@@ -229,17 +229,22 @@ export function DietView() {
 
             <div className="space-y-3">
               {meals.length === 0 ? (
-                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-8 text-center">
-                  <div className="mx-auto w-20 h-20 mb-4">
-                    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-                      {/* Plate */}
-                      <circle cx="40" cy="42" r="28" stroke="#cbd5e1" strokeWidth="2" fill="#f8fafc" />
-                      <circle cx="40" cy="42" r="18" stroke="#e2e8f0" strokeWidth="1.5" fill="none" />
-                      <circle cx="40" cy="42" r="4" fill="#e2e8f0" />
-                      {/* Fork (left) */}
-                      <path d="M18 20 L18 38 M16 20 L16 28 M18 20 L18 28 M20 20 L20 28" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
-                      {/* Knife (right) */}
-                      <path d="M62 20 L62 38 M62 20 C65 20 65 28 62 28" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 p-8 text-center">
+                  <div className="mx-auto w-24 h-24 mb-4 text-slate-300 dark:text-slate-600">
+                    <svg viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                      {/* Outer plate */}
+                      <circle cx="48" cy="48" r="30" className="fill-slate-50 dark:fill-slate-800" stroke="currentColor" strokeWidth="2.5" />
+                      {/* Inner rim */}
+                      <circle cx="48" cy="48" r="20" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+                      {/* Fork */}
+                      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 16 v14 a4 4 0 0 0 8 0 v-14" opacity="0.8" />
+                        <path d="M26 30 v50" opacity="0.8" />
+                      </g>
+                      {/* Knife */}
+                      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M70 16 c6 4 6 18 0 22 v42" opacity="0.8" />
+                      </g>
                     </svg>
                   </div>
                   <p className="text-slate-500 dark:text-slate-300 font-medium mb-1">Pusty talerz!</p>
@@ -270,15 +275,27 @@ export function DietView() {
             exit={{ opacity: 0, x: -12 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 p-5">
               {dayShoppingList.length === 0 ? (
-                <p className="text-slate-400 text-sm text-center py-6">
-                  Brak składników — dodaj posiłki na ten dzień.
-                </p>
+                <div className="py-10 text-center">
+                  <div className="mx-auto w-16 h-16 mb-4 text-slate-300 dark:text-slate-600">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                      <g stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Cart body */}
+                        <path d="M10 12 h6 l4 26 h26 l5 -18 H22" />
+                        {/* Wheels */}
+                        <circle cx="24" cy="50" r="3.5" />
+                        <circle cx="44" cy="50" r="3.5" />
+                      </g>
+                    </svg>
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-300 font-medium mb-1">Lista jest pusta</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-sm">Dodaj posiłki, aby zobaczyć listę zakupów</p>
+                </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                    <span className="text-sm text-slate-500">
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
                       {boughtCount} / {dayShoppingList.length} kupiono
                     </span>
                   </div>
@@ -289,7 +306,7 @@ export function DietView() {
                         <li key={item}>
                           <button
                             onClick={() => toggleIngredient(item)}
-                            className="flex items-center gap-2 w-full text-left py-1 px-2 rounded-lg hover:bg-slate-50 transition-colors"
+                            className="flex items-center gap-2 w-full text-left py-1 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                           >
                             {bought ? (
                               <CheckSquare className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -323,15 +340,27 @@ export function DietView() {
             transition={{ duration: 0.2 }}
           >
             {dayCookingGuide.length === 0 ? (
-              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-8 text-center">
-                <p className="text-slate-400 dark:text-slate-500 text-sm">Brak przepisów — dodaj posiłki na ten dzień.</p>
+              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 p-8 text-center">
+                <div className="py-2 text-center">
+                  <div className="mx-auto w-16 h-16 mb-4 text-slate-300 dark:text-slate-600">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                      <g stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Chef hat */}
+                        <path d="M20 40 h24 v6 a4 4 0 0 1 -4 4 H24 a4 4 0 0 1 -4 -4 z" />
+                        <path d="M20 40 a10 10 0 0 1 -2 -19 a9 9 0 0 1 16 -5 a9 9 0 0 1 16 5 a10 10 0 0 1 -2 19 z" />
+                      </g>
+                    </svg>
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-300 font-medium mb-1">Brak przepisów</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-sm">Dodaj posiłki z instrukcją, aby zobaczyć przepisy</p>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
                 {dayCookingGuide.map((entry, entryIdx) => (
                   <div
                     key={`${entry.date}-${entry.mealType}-${entryIdx}`}
-                    className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-4"
+                    className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 p-4"
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
@@ -343,8 +372,8 @@ export function DietView() {
                     </div>
                     <ol className="space-y-1.5 ml-1">
                       {entry.steps.map((step, stepIdx) => (
-                        <li key={stepIdx} className="flex gap-2 text-sm text-slate-700">
-                          <span className="font-mono text-xs font-semibold text-emerald-600 mt-0.5 flex-shrink-0">
+                        <li key={stepIdx} className="flex gap-2 text-sm text-slate-700 dark:text-slate-300">
+                          <span className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0">
                             {stepIdx + 1}.
                           </span>
                           <span>{step}</span>
@@ -352,9 +381,9 @@ export function DietView() {
                       ))}
                     </ol>
                     {entry.tip && (
-                      <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3">
+                      <div className="mt-3 flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 rounded-xl p-3">
                         <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-amber-800">{entry.tip}</p>
+                        <p className="text-xs text-amber-800 dark:text-amber-300">{entry.tip}</p>
                       </div>
                     )}
                   </div>
@@ -504,7 +533,7 @@ function MenuItem({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-left"
+      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-left"
     >
       {icon} {label}
     </button>

@@ -36,8 +36,8 @@ export function MealCard({ meal, onToggleEaten, onEdit, onSwap, onDelete, onCopy
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={`rounded-2xl bg-white dark:bg-slate-800 shadow-sm border transition-all ${
-        meal.eaten ? 'opacity-60 border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-900/20' : 'border-slate-100 dark:border-slate-700'
+      className={`rounded-2xl bg-white dark:bg-slate-900 shadow-sm border transition-all ${
+        meal.eaten ? 'opacity-60 border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-900/20' : 'border-slate-100 dark:border-slate-800'
       }`}
     >
       {/* Header — always visible, click to expand */}
@@ -129,10 +129,10 @@ export function MealCard({ meal, onToggleEaten, onEdit, onSwap, onDelete, onCopy
 
               <div className={`grid grid-cols-1 gap-4 ${hasInstruction ? 'md:grid-cols-2' : ''}`}>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Składniki</p>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Składniki</p>
                   <ul className="space-y-1.5">
                     {meal.ingredients.map((ing, i) => (
-                      <li key={i} className="text-[13px] text-slate-600 flex items-start gap-2">
+                      <li key={i} className="text-[13px] text-slate-600 dark:text-slate-300 flex items-start gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
                         {ing}
                       </li>
@@ -141,23 +141,23 @@ export function MealCard({ meal, onToggleEaten, onEdit, onSwap, onDelete, onCopy
                 </div>
                 {hasInstruction && (
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Przygotowanie</p>
-                    <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-3.5 border border-slate-100">
-                      <p className="text-[13px] text-slate-600 italic leading-relaxed">{meal.instruction}</p>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Przygotowanie</p>
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-800 dark:to-slate-800/50 rounded-xl p-3.5 border border-slate-100 dark:border-slate-700">
+                      <p className="text-[13px] text-slate-600 dark:text-slate-300 italic leading-relaxed">{meal.instruction}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               {meal.tip && (
-                <div className="mt-3 flex items-start gap-2 bg-amber-50/70 border border-amber-100 rounded-xl p-3">
+                <div className="mt-3 flex items-start gap-2 bg-amber-50/70 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 rounded-xl p-3">
                   <Lightbulb size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-[12px] text-amber-800">{meal.tip}</p>
+                  <p className="text-[12px] text-amber-800 dark:text-amber-300">{meal.tip}</p>
                 </div>
               )}
 
               {/* Actions */}
-              <div className="flex items-center flex-wrap gap-2 mt-4 pt-3 border-t border-slate-100">
+              <div className="flex items-center flex-wrap gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <ActionBtn onClick={onEdit} icon={<Pencil size={12} />} label="Edytuj" color="bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100" />
                 <ActionBtn onClick={onSwap} icon={<RefreshCw size={12} />} label="Wymień" color="bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100" />
                 <ActionBtn onClick={onCopy} icon={<CopyPlus size={12} />} label="Kopiuj" color="bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100" />

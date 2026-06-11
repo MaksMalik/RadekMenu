@@ -41,6 +41,18 @@ function heatmapTint(score: number, hasMeals: boolean): Tint {
   return { backgroundColor: `rgba(16, 185, 129, ${alpha.toFixed(3)})` }; // emerald-500 base
 }
 
+/**
+ * Variants for the calendar grid swap.
+ * - Month navigation slides horizontally (driven by `dir`: 1 next, -1 prev).
+ * - Collapse/expand (dir = 0) is a pure cross-fade; the smooth height change
+ *   is handled by the parent's `layout` animation, so no vertical jump occurs.
+ */
+const gridVariants = {
+  enter: (d: number) => ({ opacity: 0, x: d > 0 ? 28 : d < 0 ? -28 : 0 }),
+  center: { opacity: 1, x: 0 },
+  exit: (d: number) => ({ opacity: 0, x: d > 0 ? -28 : d < 0 ? 28 : 0 }),
+};
+
 export function Calendar({
   dayPlans,
   selectedDate,
@@ -50,6 +62,8 @@ export function Calendar({
 }: CalendarProps) {
   const [viewDate, setViewDate] = useState<string>(selectedDate);
   const [collapsed, setCollapsed] = useState<boolean>(false);
+  // Slide direction for month navigation: 1 = next, -1 = prev, 0 = no slide.
+  const [dir, setDir] = useState<number>(0);
 
   // Fast lookup of meals by date.
   const mealsByDate = useMemo(() => {
@@ -73,6 +87,7 @@ export function Calendar({
   const weekRow = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
 
   const navPrev = () => {
+    setDir(-1);
     if (collapsed) {
       const target = addDays(selectedDate, -7);
       onSelectDate(target);
@@ -83,6 +98,7 @@ export function Calendar({
   };
 
   const navNext = () => {
+    setDir(1);
     if (collapsed) {
       const target = addDays(selectedDate, 7);
       onSelectDate(target);
@@ -93,13 +109,20 @@ export function Calendar({
   };
 
   const goToday = () => {
+    setDir(0);
     onSelectDate(today);
     setViewDate(today);
   };
 
   const handleSelect = (date: string) => {
+    setDir(0);
     onSelectDate(date);
     setViewDate(date);
+  };
+
+  const toggleCollapsed = () => {
+    setDir(0);
+    setCollapsed((c) => !c);
   };
 
   // Key used to drive AnimatePresence transitions.
@@ -149,7 +172,7 @@ export function Calendar({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 sm:p-5">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 p-4 sm:p-5">
       {/* Header row */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100">{headerLabel}</h2>
@@ -179,7 +202,7 @@ export function Calendar({
           </button>
           <button
             type="button"
-            onClick={() => setCollapsed((c) => !c)}
+            onClick={toggleCollapsed}
             aria-label={collapsed ? 'Rozwiń' : 'Zwiń'}
             aria-expanded={!collapsed}
             className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -201,42 +224,43 @@ export function Calendar({
         ))}
       </div>
 
-      {/* Animated grid: height animates smoothly between week and month modes. */}
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.div
-          key={collapsed ? 'week' : 'month'}
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="overflow-visible"
-        >
-          <div className="space-y-1.5">
+      {/* Animated grid.
+          The outer `layout` container animates its height smoothly whenever the
+          content height changes (week <-> month, or 5 <-> 6 week rows). Keeping
+          `overflow-hidden` here means the horizontal month slide is clipped to a
+          clean edge, while the `p-1 -m-1` buffer leaves room for the "today"
+          ring (ring-2) so it is never clipped during the transition. The inner
+          AnimatePresence handles the cross-fade / horizontal slide of content. */}
+      <motion.div
+        layout
+        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        className="overflow-hidden p-1 -m-1"
+      >
+        <AnimatePresence mode="popLayout" custom={dir} initial={false}>
+          <motion.div
+            key={collapsed ? 'week' : `month-${monthLabel(effectiveView)}`}
+            custom={dir}
+            variants={gridVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="space-y-1.5"
+          >
             {collapsed ? (
               <div className="grid grid-cols-7 gap-1.5">
                 {weekRow.map((date) => renderCell(date, false))}
               </div>
             ) : (
-              <AnimatePresence mode="popLayout" initial={false}>
-                <motion.div
-                  key={monthLabel(effectiveView)}
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -16 }}
-                  transition={{ duration: 0.22, ease: 'easeOut' }}
-                  className="space-y-1.5"
-                >
-                  {weeks.map((week, wi) => (
-                    <div key={wi} className="grid grid-cols-7 gap-1.5">
-                      {week.map((date) => renderCell(date, true))}
-                    </div>
-                  ))}
-                </motion.div>
-              </AnimatePresence>
+              weeks.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7 gap-1.5">
+                  {week.map((date) => renderCell(date, true))}
+                </div>
+              ))
             )}
-          </div>
-        </motion.div>
-      </AnimatePresence>
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

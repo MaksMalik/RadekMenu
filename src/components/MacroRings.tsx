@@ -33,7 +33,7 @@ export function MacroRings({ meals, calorieTarget, proteinTarget }: MacroRingsPr
   const over = totals.kcal > calorieTarget;
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 p-5">
       {/* Calorie donut */}
       <div className="flex flex-col items-center mb-6">
         <div className="relative" style={{ width: RING, height: RING }}>
