@@ -252,7 +252,7 @@ export function DietView() {
                     </div>
 
                     {mealItems.length === 0 ? (
-                      <p className="text-xs text-slate-400 dark:text-slate-500 py-1.5 italic">Brak produktów</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 py-1.5 italic">Brak dodanych produktów</p>
                     ) : (
                       <div className="space-y-2">
                         {mealItems.map(meal => (
