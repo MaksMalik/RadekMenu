@@ -3,7 +3,10 @@ import { searchLocalProducts } from '../data/productDatabase';
 
 export interface SearchOptions {
   signal?: AbortSignal;
+  forceFatSecret?: boolean;
 }
+
+const IS_TEST = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
 
 const API_FIELDS = 'code,product_name,product_name_pl,brands,nutriments,serving_size,serving_quantity';
 const MAX_PRODUCTS = 20;
@@ -227,14 +230,46 @@ async function fetchLegacySearchProducts(query: string, options?: SearchOptions)
   return mapped;
 }
 
+async function fetchFatSecretSearchProducts(query: string, options?: SearchOptions): Promise<OFFProduct[]> {
+  try {
+    const params = new URLSearchParams({ SearchTerm: query });
+    const response = await fetch(`/api/foods-search?${params.toString()}`, {
+      signal: options?.signal,
+    });
+    if (!response.ok) {
+      return [];
+    }
+    const data = await response.json();
+    if (Array.isArray(data)) {
+      return data as OFFProduct[];
+    }
+    return [];
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error;
+    }
+    console.error("FatSecret query failed:", error);
+    return [];
+  }
+}
+
 async function fetchSearchProducts(query: string, options?: SearchOptions): Promise<OFFProduct[]> {
+  let fatSecretProducts: OFFProduct[] = [];
+  if (!IS_TEST || options?.forceFatSecret) {
+    try {
+      fatSecretProducts = await fetchFatSecretSearchProducts(query, options);
+    } catch (error) {
+      if (isAbortError(error, options?.signal)) {
+        throw error;
+      }
+    }
+  }
+
+  let offProducts: OFFProduct[] = [];
   let searchError: unknown = null;
 
   try {
-    const products = await fetchSearchALiciousProducts(query, options);
-    if (products.length > 0) {
-      return products;
-    }
+    offProducts = await fetchSearchALiciousProducts(query, options);
   } catch (error) {
     if (isAbortError(error, options?.signal)) {
       throw error;
@@ -242,14 +277,20 @@ async function fetchSearchProducts(query: string, options?: SearchOptions): Prom
     searchError = error;
   }
 
-  try {
-    return await fetchLegacySearchProducts(query, options);
-  } catch (error) {
-    if (isAbortError(error, options?.signal)) {
-      throw error;
+  if (offProducts.length === 0) {
+    try {
+      offProducts = await fetchLegacySearchProducts(query, options);
+    } catch (error) {
+      if (isAbortError(error, options?.signal)) {
+        throw error;
+      }
+      if (fatSecretProducts.length === 0) {
+        throw searchError || error;
+      }
     }
-    throw searchError || error;
   }
+
+  return [...fatSecretProducts, ...offProducts];
 }
 
 async function fetchBarcodeProduct(barcode: string, options?: SearchOptions): Promise<OFFProduct[]> {

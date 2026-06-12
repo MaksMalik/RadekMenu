@@ -6,6 +6,39 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   plugins: [
     react(),
+    {
+      name: 'api-proxy',
+      configureServer(server) {
+        server.middlewares.use(async (req, res, next) => {
+          if (req.url && req.url.includes('/api/foods-search')) {
+            try {
+              const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+              const searchTerm = urlObj.searchParams.get('SearchTerm') || urlObj.searchParams.get('q') || '';
+              
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', '*');
+
+              if (!searchTerm) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'SearchTerm is required' }));
+                return;
+              }
+
+              const { scrapeFatSecret } = await import('./api/foods-search');
+              const products = await scrapeFatSecret(searchTerm);
+              res.statusCode = 200;
+              res.end(JSON.stringify(products));
+            } catch (err) {
+              console.error("Vite API proxy error:", err);
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: String(err) }));
+            }
+          } else {
+            next();
+          }
+        });
+      }
+    },
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'foodus-logo.png'],

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Loader2, MessageSquarePlus } from 'lucide-react';
 import type { MealType } from '../types';
@@ -10,16 +10,25 @@ interface AddFromDescriptionModalProps {
   date: string;
   isOpen: boolean;
   onClose: () => void;
+  defaultMealType?: MealType;
 }
 
 const MEAL_TYPES: MealType[] = ['Śniadanie', 'II Śniadanie', 'Obiad', 'Przekąska', 'Kolacja'];
 
-export function AddFromDescriptionModal({ date, isOpen, onClose }: AddFromDescriptionModalProps) {
+export function AddFromDescriptionModal({ date, isOpen, onClose, defaultMealType }: AddFromDescriptionModalProps) {
   const { state, dispatch } = useUser();
   const { showToast } = useToast();
 
   const [description, setDescription] = useState('');
-  const [selectedType, setSelectedType] = useState<MealType>('Obiad');
+  const [selectedType, setSelectedType] = useState<MealType>(defaultMealType || 'Obiad');
+
+  // Reset selectedType and description when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setDescription('');
+      setSelectedType(defaultMealType || 'Obiad');
+    }
+  }, [isOpen, defaultMealType]);
   const [loading, setLoading] = useState(false);
 
   const canSubmit = description.trim() !== '' && !loading;

@@ -8,14 +8,15 @@ interface AddMealModalProps {
   date: string;
   isOpen: boolean;
   onClose: () => void;
+  defaultMealType?: MealType;
 }
 
 const MEAL_TYPES: MealType[] = ['Śniadanie', 'II Śniadanie', 'Obiad', 'Przekąska', 'Kolacja'];
 
-export function AddMealModal({ date, isOpen, onClose }: AddMealModalProps) {
+export function AddMealModal({ date, isOpen, onClose, defaultMealType }: AddMealModalProps) {
   const { dispatch } = useUser();
 
-  const [type, setType] = useState<MealType>('Śniadanie');
+  const [type, setType] = useState<MealType>(defaultMealType || 'Śniadanie');
   const [title, setTitle] = useState('');
   const [kcal, setKcal] = useState(0);
   const [protein, setProtein] = useState(0);
@@ -28,7 +29,7 @@ export function AddMealModal({ date, isOpen, onClose }: AddMealModalProps) {
   // Reset the form whenever the modal opens
   useEffect(() => {
     if (isOpen) {
-      setType('Śniadanie');
+      setType(defaultMealType || 'Śniadanie');
       setTitle('');
       setKcal(0);
       setProtein(0);
@@ -38,7 +39,7 @@ export function AddMealModal({ date, isOpen, onClose }: AddMealModalProps) {
       setInstruction('');
       setTip('');
     }
-  }, [isOpen]);
+  }, [isOpen, defaultMealType]);
 
   const isValid = title.trim() !== '';
 

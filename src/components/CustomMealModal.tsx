@@ -15,23 +15,24 @@ interface CustomMealModalProps {
   date: string;
   isOpen: boolean;
   onClose: () => void;
+  defaultMealType?: MealType;
 }
 
-export function CustomMealModal({ date, isOpen, onClose }: CustomMealModalProps) {
+export function CustomMealModal({ date, isOpen, onClose, defaultMealType }: CustomMealModalProps) {
   const { dispatch } = useUser();
 
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
   const [title, setTitle] = useState('');
-  const [mealType, setMealType] = useState<MealType>('Śniadanie');
+  const [mealType, setMealType] = useState<MealType>(defaultMealType || 'Śniadanie');
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       setSelectedProducts([]);
       setTitle('');
-      setMealType('Śniadanie');
+      setMealType(defaultMealType || 'Śniadanie');
     }
-  }, [isOpen]);
+  }, [isOpen, defaultMealType]);
 
   // Auto-set title when single product is selected and title is empty
   useEffect(() => {

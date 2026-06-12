@@ -345,5 +345,38 @@ describe('productSearchService', () => {
       const result = await searchProducts('test');
       expect(result.length).toBeLessThanOrEqual(20);
     });
+
+    it('queries FatSecret proxy API when forceFatSecret is set', async () => {
+      const mockProducts = [
+        {
+          id: 'fatsecret-123',
+          name: 'FatSecret product',
+          brand: 'FatSecret',
+          energy_kcal_100g: 100,
+          proteins_100g: 5,
+          carbohydrates_100g: 10,
+          fat_100g: 3,
+          servingSize: '100g',
+          servingQuantityG: 100,
+        },
+      ];
+
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockProducts),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await searchProducts('test', { forceFatSecret: true });
+      
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/api/foods-search?SearchTerm=test'),
+        expect.any(Object)
+      );
+      expect(result).toContainEqual(expect.objectContaining({
+        id: 'fatsecret-123',
+        name: 'FatSecret product',
+      }));
+    });
   });
 });
