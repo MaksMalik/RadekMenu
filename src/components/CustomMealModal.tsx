@@ -7,7 +7,7 @@ import { useUser } from '../context/UserContext';
 import { buildMeal } from '../services/customMealBuilder';
 import { computeProductMacros, computeTotalMacros, roundMacros } from '../utils/macroCalculator';
 import type { MealType } from '../types';
-import type { OFFProduct, SelectedProduct } from '../types/openfoodfacts';
+import type { OFFProduct, SelectedProduct, WeightUnit } from '../types/openfoodfacts';
 
 const MEAL_TYPES: MealType[] = ['Śniadanie', 'II Śniadanie', 'Obiad', 'Przekąska', 'Kolacja'];
 
@@ -40,25 +40,35 @@ export function CustomMealModal({ date, isOpen, onClose }: CustomMealModalProps)
     }
   }, [selectedProducts, title]);
 
-  // Compute running total macros
+  // Compute running total macros (convert ml to g assuming density ~1)
   const totalMacros = useMemo(() => {
     const productsWithWeight = selectedProducts.map((sp) => ({
       energy_kcal_100g: sp.product.energy_kcal_100g,
       proteins_100g: sp.product.proteins_100g,
       carbohydrates_100g: sp.product.carbohydrates_100g,
       fat_100g: sp.product.fat_100g,
-      weight: sp.weight,
+      weight: sp.weight, // ml ≈ g for liquids
     }));
     return roundMacros(computeTotalMacros(productsWithWeight));
   }, [selectedProducts]);
 
   const handleSelectProduct = (product: OFFProduct) => {
-    setSelectedProducts((prev) => [...prev, { product, weight: 100 }]);
+    // Default weight: use serving size if available, otherwise 100
+    const defaultWeight = product.servingQuantityG && product.servingQuantityG > 0
+      ? product.servingQuantityG
+      : 100;
+    setSelectedProducts((prev) => [...prev, { product, weight: defaultWeight, unit: 'g' }]);
   };
 
   const handleWeightChange = (index: number, weight: number) => {
     setSelectedProducts((prev) =>
       prev.map((sp, i) => (i === index ? { ...sp, weight } : sp))
+    );
+  };
+
+  const handleUnitChange = (index: number, unit: WeightUnit) => {
+    setSelectedProducts((prev) =>
+      prev.map((sp, i) => (i === index ? { ...sp, unit } : sp))
     );
   };
 
@@ -86,10 +96,10 @@ export function CustomMealModal({ date, isOpen, onClose }: CustomMealModalProps)
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Stwórz posiłek z produktów">
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[70vh] overflow-y-auto">
         {/* Meal type selector */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Typ posiłku</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Typ posiłku</label>
           <div className="flex flex-wrap gap-2">
             {MEAL_TYPES.map((mt) => (
               <button
@@ -98,7 +108,7 @@ export function CustomMealModal({ date, isOpen, onClose }: CustomMealModalProps)
                 onClick={() => setMealType(mt)}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   mealType === mt
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-emerald-600 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -110,26 +120,26 @@ export function CustomMealModal({ date, isOpen, onClose }: CustomMealModalProps)
 
         {/* Title input */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Nazwa posiłku</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Nazwa posiłku</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="np. Śniadanie proteinowe"
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            placeholder="np. Śniadanie proteinowe, Sałatka z kurczakiem..."
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           />
         </div>
 
         {/* Product search */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Szukaj produktu</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Dodaj produkty</label>
           <ProductSearchInput onSelect={handleSelectProduct} />
         </div>
 
         {/* Selected products */}
         {selectedProducts.length > 0 && (
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Wybrane produkty ({selectedProducts.length})
             </label>
             <div className="space-y-2">
@@ -138,14 +148,16 @@ export function CustomMealModal({ date, isOpen, onClose }: CustomMealModalProps)
                   key={`${sp.product.id}-${index}`}
                   product={sp.product}
                   weight={sp.weight}
+                  unit={sp.unit}
                   macros={computeProductMacros({
                     energy_kcal_100g: sp.product.energy_kcal_100g,
                     proteins_100g: sp.product.proteins_100g,
                     carbohydrates_100g: sp.product.carbohydrates_100g,
                     fat_100g: sp.product.fat_100g,
-                    weight: sp.weight,
+                    weight: sp.weight, // ml ≈ g
                   })}
                   onWeightChange={(w) => handleWeightChange(index, w)}
+                  onUnitChange={(u) => handleUnitChange(index, u)}
                   onRemove={() => handleRemoveProduct(index)}
                 />
               ))}
@@ -155,9 +167,9 @@ export function CustomMealModal({ date, isOpen, onClose }: CustomMealModalProps)
 
         {/* Running macro totals */}
         {selectedProducts.length > 0 && (
-          <div className="flex justify-between items-center px-3 py-2 bg-emerald-50 rounded-xl">
-            <span className="text-sm font-medium text-emerald-800">Suma:</span>
-            <div className="flex gap-3 text-sm text-emerald-700">
+          <div className="sticky bottom-0 flex justify-between items-center px-3 py-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
+            <span className="text-sm font-semibold text-emerald-800">Razem:</span>
+            <div className="flex gap-3 text-sm font-medium text-emerald-700">
               <span>{totalMacros.kcal} kcal</span>
               <span>B: {totalMacros.protein}g</span>
               <span>W: {totalMacros.carbs}g</span>
@@ -168,17 +180,17 @@ export function CustomMealModal({ date, isOpen, onClose }: CustomMealModalProps)
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-end gap-3 mt-6">
+      <div className="flex items-center justify-end gap-3 mt-4 pt-3 border-t border-slate-100">
         <button
           onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+          className="px-4 py-2.5 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
         >
           Anuluj
         </button>
         <button
           onClick={handleConfirm}
           disabled={!isValid}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Dodaj posiłek

@@ -4,12 +4,43 @@ export interface SearchOptions {
   signal?: AbortSignal;
 }
 
+const API_FIELDS = 'code,product_name,product_name_pl,brands,nutriments,serving_size,serving_quantity';
+
 /**
  * Builds the Open Food Facts search URL with correct parameters.
+ * Uses search_terms for better relevance, sorts by popularity.
  */
 export function buildSearchUrl(query: string): string {
   const encoded = encodeURIComponent(query);
-  return `https://pl.openfoodfacts.org/cgi/search.pl?search_keywords=${encoded}&action=process&json=true&page_size=20`;
+  return `https://pl.openfoodfacts.org/cgi/search.pl?search_terms=${encoded}&action=process&json=true&page_size=20&sort_by=unique_scans_n&fields=${API_FIELDS}`;
+}
+
+/**
+ * Parses serving size string to extract grams.
+ * Handles formats like "30g", "250ml", "30 g", "1 sztuka (25g)", etc.
+ */
+export function parseServingSize(servingSize?: string, servingQuantity?: number): number | null {
+  // If numeric serving_quantity is provided, use it directly
+  if (typeof servingQuantity === 'number' && servingQuantity > 0) {
+    return servingQuantity;
+  }
+
+  if (!servingSize) return null;
+
+  // Try to extract number followed by g or ml
+  // Match patterns like "30g", "30 g", "250ml", "250 ml"
+  const match = servingSize.match(/(\d+(?:[.,]\d+)?)\s*(?:g|ml)/i);
+  if (match) {
+    return parseFloat(match[1].replace(',', '.'));
+  }
+
+  // Try to extract from parentheses: "1 sztuka (25g)"
+  const parenMatch = servingSize.match(/\((\d+(?:[.,]\d+)?)\s*(?:g|ml)\)/i);
+  if (parenMatch) {
+    return parseFloat(parenMatch[1].replace(',', '.'));
+  }
+
+  return null;
 }
 
 /**
@@ -42,6 +73,8 @@ export function mapProduct(raw: unknown): OFFProduct | null {
   const name = product.product_name_pl || product.product_name || '';
   if (!name) return null;
 
+  const servingQuantityG = parseServingSize(product.serving_size, product.serving_quantity);
+
   return {
     id: product._id || product.code || '',
     name,
@@ -50,16 +83,18 @@ export function mapProduct(raw: unknown): OFFProduct | null {
     proteins_100g: proteins,
     carbohydrates_100g: carbs,
     fat_100g: fat,
+    servingSize: product.serving_size || null,
+    servingQuantityG,
   };
 }
 
 /**
  * Searches the Open Food Facts Polish API for products matching the query.
- * - Constructs URL with correct parameters
+ * - Uses search_terms for better relevance
+ * - Sorts by popularity (unique_scans_n)
  * - Filters out products missing required nutritional fields
  * - Returns max 20 products
- * - Throws on network error
- * - Aborts via AbortSignal
+ * - Throws on network error (NOT on abort)
  */
 export async function searchProducts(
   query: string,
@@ -72,7 +107,7 @@ export async function searchProducts(
   });
 
   if (!response.ok) {
-    throw new Error('Nie udało się połączyć. Sprawdź połączenie internetowe.');
+    throw new Error('NETWORK_ERROR');
   }
 
   let data: OFFApiResponse;

@@ -13,14 +13,18 @@ describe('productSearchService', () => {
   describe('buildSearchUrl', () => {
     it('constructs URL with correct domain and parameters', () => {
       const url = buildSearchUrl('jogurt');
-      expect(url).toBe(
-        'https://pl.openfoodfacts.org/cgi/search.pl?search_keywords=jogurt&action=process&json=true&page_size=20'
-      );
+      expect(url).toContain('pl.openfoodfacts.org');
+      expect(url).toContain('search_terms=jogurt');
+      expect(url).toContain('action=process');
+      expect(url).toContain('json=true');
+      expect(url).toContain('page_size=20');
+      expect(url).toContain('sort_by=unique_scans_n');
+      expect(url).toContain('fields=');
     });
 
     it('encodes special characters in query', () => {
       const url = buildSearchUrl('mleko 3.2%');
-      expect(url).toContain('search_keywords=mleko%203.2%25');
+      expect(url).toContain('search_terms=mleko%203.2%25');
     });
   });
 
@@ -46,6 +50,8 @@ describe('productSearchService', () => {
         proteins_100g: 4.5,
         carbohydrates_100g: 6.2,
         fat_100g: 1.8,
+        servingSize: null,
+        servingQuantityG: null,
       });
     });
 
