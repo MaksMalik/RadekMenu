@@ -19,6 +19,7 @@ import { FridgeModal } from './FridgeModal';
 import { ShoppingListModal } from './ShoppingListModal';
 import { CookingGuideModal } from './CookingGuideModal';
 import { AddFromDescriptionModal } from './AddFromDescriptionModal';
+import { CustomMealModal } from './CustomMealModal';
 import { generateFullDay } from '../ai/geminiClient';
 import { generateShoppingList } from '../utils/shoppingList';
 import { generateCookingGuide } from '../utils/cookingGuide';
@@ -52,6 +53,7 @@ export function DietView() {
   const [showFridge, setShowFridge] = useState(false);
   const [showAddMeal, setShowAddMeal] = useState(false);
   const [showAddFromDescription, setShowAddFromDescription] = useState(false);
+  const [showCustomMeal, setShowCustomMeal] = useState(false);
   const [copyingMeal, setCopyingMeal] = useState<Meal | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -404,6 +406,7 @@ export function DietView() {
         aiGenerating={aiGenerating}
         onAddMeal={() => { setFabOpen(false); setShowAddMeal(true); }}
         onAddFromDescription={() => { setFabOpen(false); setShowAddFromDescription(true); }}
+        onCustomMeal={() => { setFabOpen(false); setShowCustomMeal(true); }}
         onFridge={() => { setFabOpen(false); setShowFridge(true); }}
         onGenerateDay={handleGenerateDay}
       />
@@ -424,6 +427,7 @@ export function DietView() {
 
       <AddMealModal date={selectedDate} isOpen={showAddMeal} onClose={() => setShowAddMeal(false)} />
       <AddFromDescriptionModal date={selectedDate} isOpen={showAddFromDescription} onClose={() => setShowAddFromDescription(false)} />
+      <CustomMealModal date={selectedDate} isOpen={showCustomMeal} onClose={() => setShowCustomMeal(false)} />
       {showFridge && <FridgeModal onClose={() => setShowFridge(false)} />}
       {showShopping && <ShoppingListModal onClose={() => setShowShopping(false)} />}
       {showCooking && <CookingGuideModal onClose={() => setShowCooking(false)} />}
@@ -435,7 +439,7 @@ export function DietView() {
 
 function SpeedDial({
   open, onToggle, hasApiKey, hasMeals, isDayComplete, aiGenerating,
-  onAddMeal, onAddFromDescription, onFridge, onGenerateDay,
+  onAddMeal, onAddFromDescription, onCustomMeal, onFridge, onGenerateDay,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -445,11 +449,13 @@ function SpeedDial({
   aiGenerating: boolean;
   onAddMeal: () => void;
   onAddFromDescription: () => void;
+  onCustomMeal: () => void;
   onFridge: () => void;
   onGenerateDay: () => void;
 }) {
   const actions = [
     { label: 'Dodaj posiłek', icon: <Plus size={18} />, onClick: onAddMeal, color: 'bg-slate-700', disabled: false },
+    { label: 'Stwórz z produktów', icon: <UtensilsCrossed size={18} />, onClick: onCustomMeal, color: 'bg-orange-500', disabled: false },
     { label: 'Dodaj z opisu (AI)', icon: <MessageSquarePlus size={18} />, onClick: onAddFromDescription, color: 'bg-sky-500', disabled: !hasApiKey },
     { label: 'Co w lodówce? (AI)', icon: <Refrigerator size={18} />, onClick: onFridge, color: 'bg-sky-500', disabled: !hasApiKey },
     // Hide the generate/supplement option when the day is already complete
