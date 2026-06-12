@@ -76,7 +76,8 @@ describe('productSearchService property tests', () => {
         expect(url).toContain('action=process');
         expect(url).toContain('json=true');
         expect(url).toContain('page_size=20');
-        expect(url).toContain(`search_keywords=${encodeURIComponent(query)}`);
+        expect(url).toContain('sort_by=unique_scans_n');
+        expect(url).toContain(`search_terms=${encodeURIComponent(query)}`);
       }),
       { numRuns: 200 }
     );

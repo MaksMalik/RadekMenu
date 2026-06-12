@@ -17,11 +17,16 @@ const offProductArb: fc.Arbitrary<OFFProduct> = fc.record({
   proteins_100g: fc.float({ min: 0, max: 2000, noNaN: true }),
   carbohydrates_100g: fc.float({ min: 0, max: 2000, noNaN: true }),
   fat_100g: fc.float({ min: 0, max: 2000, noNaN: true }),
+  servingSize: fc.oneof(fc.constant(null), fc.string({ minLength: 1, maxLength: 20 })),
+  servingQuantityG: fc.oneof(fc.constant(null), fc.float({ min: 1, max: 500, noNaN: true })),
 });
+
+const weightUnitArb = fc.constantFrom<'g' | 'ml'>('g', 'ml');
 
 const selectedProductArb: fc.Arbitrary<SelectedProduct> = fc.record({
   product: offProductArb,
   weight: fc.integer({ min: 1, max: 5000 }),
+  unit: weightUnitArb,
 });
 
 describe('customMealBuilder property tests', () => {
@@ -47,7 +52,7 @@ describe('customMealBuilder property tests', () => {
     fc.assert(
       fc.property(offProductArb, (product) => {
         // Simulating how the UI creates a SelectedProduct
-        const selected: SelectedProduct = { product, weight: 100 };
+        const selected: SelectedProduct = { product, weight: 100, unit: 'g' };
         expect(selected.weight).toBe(100);
       }),
       { numRuns: 200 }

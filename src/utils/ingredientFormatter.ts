@@ -1,10 +1,11 @@
-import type { IngredientEntry } from '../types/openfoodfacts';
+import type { IngredientEntry, WeightUnit } from '../types/openfoodfacts';
 
 /**
- * Formats an ingredient entry as "{name} - {weight}g".
+ * Formats an ingredient entry as "{name} - {weight}g" or "{name} - {weight}ml".
  */
 export function formatIngredient(entry: IngredientEntry): string {
-  return `${entry.name} - ${entry.weight}g`;
+  const unitLabel = entry.unit || 'g';
+  return `${entry.name} - ${entry.weight}${unitLabel}`;
 }
 
 /**
@@ -16,7 +17,7 @@ export function formatIngredients(entries: IngredientEntry[]): string[] {
 
 /**
  * Parses a formatted ingredient string back into name and weight.
- * Expected format: "{name} - {weight}g"
+ * Expected format: "{name} - {weight}g" or "{name} - {weight}ml"
  * Returns null if the string doesn't match the expected format.
  */
 export function parseIngredient(formatted: string): IngredientEntry | null {
@@ -26,12 +27,21 @@ export function parseIngredient(formatted: string): IngredientEntry | null {
   const name = formatted.substring(0, lastDashIndex);
   const weightPart = formatted.substring(lastDashIndex + 3); // skip " - "
 
-  if (!weightPart.endsWith('g')) return null;
+  let unit: WeightUnit = 'g';
+  let weightStr: string;
 
-  const weightStr = weightPart.slice(0, -1); // remove trailing 'g'
+  if (weightPart.endsWith('ml')) {
+    unit = 'ml';
+    weightStr = weightPart.slice(0, -2);
+  } else if (weightPart.endsWith('g')) {
+    unit = 'g';
+    weightStr = weightPart.slice(0, -1);
+  } else {
+    return null;
+  }
+
   const weight = Number(weightStr);
-
   if (!name || isNaN(weight) || weight <= 0) return null;
 
-  return { name, weight };
+  return { name, weight, unit };
 }

@@ -26,6 +26,8 @@ function createProduct(overrides = {}) {
     proteins_100g: 4.5,
     carbohydrates_100g: 6.2,
     fat_100g: 1.8,
+    servingSize: null,
+    servingQuantityG: null,
     ...overrides,
   };
 }
@@ -88,7 +90,7 @@ describe('CustomMealModal', () => {
     fireEvent.click(screen.getByText('Mleko'));
 
     // Clear the auto-set title
-    const titleInput = screen.getByPlaceholderText('np. Śniadanie proteinowe');
+    const titleInput = screen.getByPlaceholderText('np. Śniadanie proteinowe, Sałatka z kurczakiem...');
     fireEvent.change(titleInput, { target: { value: '' } });
 
     const confirmBtn = screen.getByText('Dodaj posiłek');
@@ -129,7 +131,7 @@ describe('CustomMealModal', () => {
     // Select product
     fireEvent.click(screen.getByText('Jogurt naturalny'));
 
-    const titleInput = screen.getByPlaceholderText('np. Śniadanie proteinowe') as HTMLInputElement;
+    const titleInput = screen.getByPlaceholderText('np. Śniadanie proteinowe, Sałatka z kurczakiem...') as HTMLInputElement;
     expect(titleInput.value).toBe('Jogurt naturalny');
   });
 
@@ -139,8 +141,8 @@ describe('CustomMealModal', () => {
 
     fireEvent.click(screen.getByText('Jogurt naturalny'));
 
-    // Should show "Suma:" with macro values
-    expect(screen.getByText('Suma:')).toBeInTheDocument();
+    // Should show "Razem:" with macro values
+    expect(screen.getByText('Razem:')).toBeInTheDocument();
     expect(screen.getByText('61 kcal')).toBeInTheDocument();
   });
 
@@ -152,13 +154,13 @@ describe('CustomMealModal', () => {
     fireEvent.click(screen.getByText('Jogurt naturalny'));
 
     // Product should be in selected list
-    expect(screen.getByText('Suma:')).toBeInTheDocument();
+    expect(screen.getByText('Razem:')).toBeInTheDocument();
 
     // Click remove
     const removeBtn = screen.getByLabelText('Usuń produkt');
     fireEvent.click(removeBtn);
 
     // Macro totals should disappear
-    expect(screen.queryByText('Suma:')).not.toBeInTheDocument();
+    expect(screen.queryByText('Razem:')).not.toBeInTheDocument();
   });
 });
