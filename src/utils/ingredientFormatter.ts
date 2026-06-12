@@ -27,7 +27,7 @@ export function parseIngredient(formatted: string): IngredientEntry | null {
   const name = formatted.substring(0, lastDashIndex);
   const weightPart = formatted.substring(lastDashIndex + 3); // skip " - "
 
-  let unit: WeightUnit = 'g';
+  let unit: WeightUnit;
   let weightStr: string;
 
   if (weightPart.endsWith('ml')) {

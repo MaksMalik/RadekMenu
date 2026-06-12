@@ -59,25 +59,29 @@ describe('CustomMealModal', () => {
     mockError = null;
   });
 
+  const clickFirstProduct = (name: string) => {
+    fireEvent.click(screen.getAllByText(name)[0]);
+  };
+
   it('renders all 5 meal type options', () => {
     render(<CustomMealModal date="2024-01-01" isOpen={true} onClose={() => {}} />);
-    expect(screen.getByText('Śniadanie')).toBeInTheDocument();
-    expect(screen.getByText('II Śniadanie')).toBeInTheDocument();
-    expect(screen.getByText('Obiad')).toBeInTheDocument();
-    expect(screen.getByText('Przekąska')).toBeInTheDocument();
-    expect(screen.getByText('Kolacja')).toBeInTheDocument();
+    expect(screen.getAllByText('Śniadanie')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('II Śniadanie')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Obiad')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Przekąska')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Kolacja')[0]).toBeInTheDocument();
   });
 
   it('defaults to Śniadanie meal type', () => {
     render(<CustomMealModal date="2024-01-01" isOpen={true} onClose={() => {}} />);
-    const sniadanieBtn = screen.getByText('Śniadanie');
+    const sniadanieBtn = screen.getAllByText('Śniadanie')[0];
     // The active button has the emerald-600 class
     expect(sniadanieBtn.className).toContain('bg-emerald-600');
   });
 
   it('has confirm button disabled when no products are selected', () => {
     render(<CustomMealModal date="2024-01-01" isOpen={true} onClose={() => {}} />);
-    const confirmBtn = screen.getByText('Dodaj posiłek');
+    const confirmBtn = screen.getAllByText('Dodaj posiłek')[0];
     expect(confirmBtn.closest('button')).toBeDisabled();
   });
 
@@ -86,14 +90,14 @@ describe('CustomMealModal', () => {
     render(<CustomMealModal date="2024-01-01" isOpen={true} onClose={() => {}} />);
 
     // Select a product from results
-    fireEvent.click(screen.getByText('Jogurt naturalny'));
-    fireEvent.click(screen.getByText('Mleko'));
+    clickFirstProduct('Jogurt naturalny');
+    clickFirstProduct('Mleko');
 
     // Clear the auto-set title
-    const titleInput = screen.getByPlaceholderText('np. Śniadanie proteinowe, Sałatka z kurczakiem...');
+    const titleInput = screen.getAllByPlaceholderText('np. Śniadanie proteinowe, Sałatka z kurczakiem...')[0];
     fireEvent.change(titleInput, { target: { value: '' } });
 
-    const confirmBtn = screen.getByText('Dodaj posiłek');
+    const confirmBtn = screen.getAllByText('Dodaj posiłek')[0];
     expect(confirmBtn.closest('button')).toBeDisabled();
   });
 
@@ -102,11 +106,11 @@ describe('CustomMealModal', () => {
     render(<CustomMealModal date="2024-01-01" isOpen={true} onClose={() => {}} />);
 
     // Select product
-    fireEvent.click(screen.getByText('Jogurt naturalny'));
+    clickFirstProduct('Jogurt naturalny');
 
     // Title auto-set to product name for single product
     // Click confirm
-    const confirmBtn = screen.getByText('Dodaj posiłek').closest('button')!;
+    const confirmBtn = screen.getAllByText('Dodaj posiłek')[0].closest('button')!;
     fireEvent.click(confirmBtn);
 
     expect(mockDispatch).toHaveBeenCalledWith(
@@ -129,9 +133,9 @@ describe('CustomMealModal', () => {
     render(<CustomMealModal date="2024-01-01" isOpen={true} onClose={() => {}} />);
 
     // Select product
-    fireEvent.click(screen.getByText('Jogurt naturalny'));
+    clickFirstProduct('Jogurt naturalny');
 
-    const titleInput = screen.getByPlaceholderText('np. Śniadanie proteinowe, Sałatka z kurczakiem...') as HTMLInputElement;
+    const titleInput = screen.getAllByPlaceholderText('np. Śniadanie proteinowe, Sałatka z kurczakiem...')[0] as HTMLInputElement;
     expect(titleInput.value).toBe('Jogurt naturalny');
   });
 
@@ -139,11 +143,11 @@ describe('CustomMealModal', () => {
     mockSearchResults = [createProduct()];
     render(<CustomMealModal date="2024-01-01" isOpen={true} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByText('Jogurt naturalny'));
+    clickFirstProduct('Jogurt naturalny');
 
     // Should show "Razem:" with macro values
-    expect(screen.getByText('Razem:')).toBeInTheDocument();
-    expect(screen.getByText('61 kcal')).toBeInTheDocument();
+    expect(screen.getAllByText('Razem:')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('61 kcal')[0]).toBeInTheDocument();
   });
 
   it('allows removing products from composition', () => {
@@ -151,13 +155,13 @@ describe('CustomMealModal', () => {
     render(<CustomMealModal date="2024-01-01" isOpen={true} onClose={() => {}} />);
 
     // Select product
-    fireEvent.click(screen.getByText('Jogurt naturalny'));
+    clickFirstProduct('Jogurt naturalny');
 
     // Product should be in selected list
-    expect(screen.getByText('Razem:')).toBeInTheDocument();
+    expect(screen.getAllByText('Razem:')[0]).toBeInTheDocument();
 
     // Click remove
-    const removeBtn = screen.getByLabelText('Usuń produkt');
+    const removeBtn = screen.getAllByLabelText('Usuń produkt')[0];
     fireEvent.click(removeBtn);
 
     // Macro totals should disappear

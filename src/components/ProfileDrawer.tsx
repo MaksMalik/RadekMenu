@@ -5,6 +5,13 @@ import { useUser } from '../context/UserContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from './Toast';
 import { writeUserStateOrThrow } from '../firebase/firestoreStorage';
+import {
+  macroPercentagesFromProfile,
+  macroTargetsFromCalories,
+  macroTargetsFromProfile,
+  rebalanceMacroPercentages,
+} from '../utils/macroTargets';
+import type { MacroPercentages } from '../types';
 
 interface ProfileDrawerProps {
   isOpen: boolean;
@@ -26,6 +33,8 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
   const [apiKeyInput, setApiKeyInput] = useState(state.geminiApiKey);
   const [revealKey, setRevealKey] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
+  const macroPercentages = macroPercentagesFromProfile(userProfile);
+  const macroTargets = macroTargetsFromProfile(userProfile);
 
   // Sync the local editor with the stored key whenever the drawer (re)opens or
   // the stored key changes from elsewhere, and reset the reveal toggle so the
@@ -128,6 +137,33 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
     });
   };
 
+  const updateCalories = (dailyCalorieTarget: number) => {
+    const targets = macroTargetsFromCalories(dailyCalorieTarget, macroPercentages);
+    dispatch({
+      type: 'UPDATE_PROFILE',
+      profile: {
+        dailyCalorieTarget,
+        dailyProteinTarget: targets.protein,
+        macroPercentages,
+      },
+    });
+  };
+
+  const updateMacroPercentages = (percentages: MacroPercentages) => {
+    const targets = macroTargetsFromCalories(userProfile.dailyCalorieTarget, percentages);
+    dispatch({
+      type: 'UPDATE_PROFILE',
+      profile: {
+        macroPercentages: percentages,
+        dailyProteinTarget: targets.protein,
+      },
+    });
+  };
+
+  const updateMacroPercent = (key: keyof MacroPercentages, value: number) => {
+    updateMacroPercentages(rebalanceMacroPercentages(macroPercentages, key, value));
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -175,13 +211,44 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                   <NumberField
                     label="Kalorie (kcal)"
                     value={userProfile.dailyCalorieTarget}
-                    onChange={(v) => dispatch({ type: 'UPDATE_PROFILE', profile: { dailyCalorieTarget: v } })}
+                    onChange={updateCalories}
                   />
-                  <NumberField
-                    label="Białko (g)"
-                    value={userProfile.dailyProteinTarget}
-                    onChange={(v) => dispatch({ type: 'UPDATE_PROFILE', profile: { dailyProteinTarget: v } })}
+                </div>
+              </section>
+
+              {/* Macro targets */}
+              <section>
+                <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-3">
+                  Makro
+                </h3>
+                <div className="space-y-3">
+                  <MacroPercentControl
+                    label="Białko"
+                    value={macroPercentages.protein}
+                    grams={macroTargets.protein}
+                    color="emerald"
+                    onChange={(v) => updateMacroPercent('protein', v)}
                   />
+                  <MacroPercentControl
+                    label="Węgle"
+                    value={macroPercentages.carbs}
+                    grams={macroTargets.carbs}
+                    color="sky"
+                    onChange={(v) => updateMacroPercent('carbs', v)}
+                  />
+                  <MacroPercentControl
+                    label="Tłuszcze"
+                    value={macroPercentages.fats}
+                    grams={macroTargets.fats}
+                    color="violet"
+                    onChange={(v) => updateMacroPercent('fats', v)}
+                  />
+                </div>
+                <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-700 px-3 py-2">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Suma makro</span>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    {macroPercentages.protein + macroPercentages.carbs + macroPercentages.fats}%
+                  </span>
                 </div>
               </section>
 
@@ -370,18 +437,83 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
   );
 }
 
-function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function NumberField({
+  label,
+  value,
+  onChange,
+  min = 1,
+  max,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+}) {
   return (
     <div>
       <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{label}</label>
       <input
         type="number"
+        min={min}
+        max={max}
         value={value}
         onChange={(e) => {
           const v = parseInt(e.target.value, 10);
-          if (!isNaN(v) && v > 0) onChange(v);
+          if (!isNaN(v) && v >= min && (max === undefined || v <= max)) onChange(v);
         }}
         className="w-full px-3 py-2 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+    </div>
+  );
+}
+
+function MacroPercentControl({
+  label,
+  value,
+  grams,
+  color,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  grams: number;
+  color: 'emerald' | 'sky' | 'violet';
+  onChange: (v: number) => void;
+}) {
+  const colorClass = {
+    emerald: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/25',
+    sky: 'text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-900/25',
+    violet: 'text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/25',
+  }[color];
+
+  return (
+    <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-100">{label}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">{grams} g dziennie</p>
+        </div>
+        <div className={`flex items-center gap-1 rounded-xl px-2 py-1 ${colorClass}`}>
+          <input
+            type="number"
+            min={5}
+            max={90}
+            value={value}
+            onChange={(e) => onChange(parseInt(e.target.value, 10))}
+            className="w-11 bg-transparent text-right text-sm font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <span className="text-xs font-bold">%</span>
+        </div>
+      </div>
+      <input
+        type="range"
+        min={5}
+        max={90}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
+        className="w-full accent-emerald-600"
+        aria-label={`${label} procent kalorii`}
       />
     </div>
   );

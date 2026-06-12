@@ -27,12 +27,19 @@ export interface MacroTargets {
   fats: number;
 }
 
+export interface MacroPercentages {
+  protein: number;
+  carbs: number;
+  fats: number;
+}
+
 export interface UserProfile {
   weight: number;
   height: number;
   goal: string;
   dailyCalorieTarget: number;
   dailyProteinTarget: number;
+  macroPercentages?: MacroPercentages;
   mealsPerDay: number;
   equipment: string[];
   dislikedIngredients: string[];

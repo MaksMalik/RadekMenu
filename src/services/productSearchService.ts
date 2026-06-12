@@ -1,18 +1,38 @@
 import type { OFFProduct, OFFRawProduct, OFFApiResponse } from '../types/openfoodfacts';
+import { searchLocalProducts } from '../data/productDatabase';
 
 export interface SearchOptions {
   signal?: AbortSignal;
 }
 
 const API_FIELDS = 'code,product_name,product_name_pl,brands,nutriments,serving_size,serving_quantity';
+const MAX_PRODUCTS = 20;
 
 /**
- * Builds the Open Food Facts search URL with correct parameters.
- * Uses search_terms for better relevance, sorts by popularity.
+ * Builds the Search-a-licious URL recommended for full-text Open Food Facts search.
  */
 export function buildSearchUrl(query: string): string {
+  const params = new URLSearchParams({
+    q: query,
+    langs: 'pl,en',
+    page_size: String(MAX_PRODUCTS),
+    fields: API_FIELDS,
+  });
+  return `https://search.openfoodfacts.org/search?${params.toString()}`;
+}
+
+/**
+ * Builds the legacy Open Food Facts keyword search URL.
+ * Kept as a fallback while Search-a-licious is still beta.
+ */
+export function buildLegacySearchUrl(query: string): string {
   const encoded = encodeURIComponent(query);
-  return `https://pl.openfoodfacts.org/cgi/search.pl?search_terms=${encoded}&action=process&json=true&page_size=20&sort_by=unique_scans_n&fields=${API_FIELDS}`;
+  return `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encoded}&search_simple=1&action=process&json=1&page_size=${MAX_PRODUCTS}&sort_by=unique_scans_n&fields=${API_FIELDS}`;
+}
+
+export function buildProductUrl(barcode: string): string {
+  const encoded = encodeURIComponent(barcode);
+  return `https://world.openfoodfacts.org/api/v2/product/${encoded}?fields=${API_FIELDS}`;
 }
 
 /**
@@ -43,6 +63,36 @@ export function parseServingSize(servingSize?: string, servingQuantity?: number)
   return null;
 }
 
+function readNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value.replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function readNutriment(nutriments: Record<string, unknown>, keys: string[]): number | null {
+  for (const key of keys) {
+    const value = readNumber(nutriments[key]);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
+function readText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .join(', ');
+  }
+  return '';
+}
+
 /**
  * Validates and maps raw API product data to OFFProduct.
  * Returns null for products missing required fields.
@@ -51,35 +101,37 @@ export function mapProduct(raw: unknown): OFFProduct | null {
   if (!raw || typeof raw !== 'object') return null;
 
   const product = raw as OFFRawProduct;
-  const nutriments = product.nutriments;
+  const nutriments = (product.nutriments ?? {}) as Record<string, unknown>;
 
   if (!nutriments) return null;
 
-  const energy = nutriments['energy-kcal_100g'];
-  const proteins = nutriments.proteins_100g;
-  const carbs = nutriments.carbohydrates_100g;
-  const fat = nutriments.fat_100g;
+  const energyKcal = readNutriment(nutriments, ['energy-kcal_100g', 'energy_kcal_100g']);
+  const energyKj = readNutriment(nutriments, ['energy_100g', 'energy-kj_100g']);
+  const energy = energyKcal ?? (energyKj !== null ? energyKj / 4.184 : null);
+  const proteins = readNutriment(nutriments, ['proteins_100g', 'proteins']);
+  const carbs = readNutriment(nutriments, ['carbohydrates_100g', 'carbohydrates']);
+  const fat = readNutriment(nutriments, ['fat_100g', 'fat']);
 
   // All four nutritional fields must be present and non-negative numbers
   if (
-    typeof energy !== 'number' || energy < 0 ||
-    typeof proteins !== 'number' || proteins < 0 ||
-    typeof carbs !== 'number' || carbs < 0 ||
-    typeof fat !== 'number' || fat < 0
+    energy === null || energy < 0 ||
+    proteins === null || proteins < 0 ||
+    carbs === null || carbs < 0 ||
+    fat === null || fat < 0
   ) {
     return null;
   }
 
-  const name = product.product_name_pl || product.product_name || '';
+  const name = readText(product.product_name_pl) || readText(product.product_name);
   if (!name) return null;
 
   const servingQuantityG = parseServingSize(product.serving_size, product.serving_quantity);
 
   return {
-    id: product._id || product.code || '',
+    id: readText(product._id) || readText(product.code),
     name,
-    brand: product.brands || '',
-    energy_kcal_100g: energy,
+    brand: readText(product.brands),
+    energy_kcal_100g: Math.round(energy * 10) / 10,
     proteins_100g: proteins,
     carbohydrates_100g: carbs,
     fat_100g: fat,
@@ -88,21 +140,63 @@ export function mapProduct(raw: unknown): OFFProduct | null {
   };
 }
 
-/**
- * Searches the Open Food Facts Polish API for products matching the query.
- * - Uses search_terms for better relevance
- * - Sorts by popularity (unique_scans_n)
- * - Filters out products missing required nutritional fields
- * - Returns max 20 products
- * - Throws on network error (NOT on abort)
- */
-export async function searchProducts(
-  query: string,
-  options?: SearchOptions
-): Promise<OFFProduct[]> {
-  const url = buildSearchUrl(query);
+function isAbortError(error: unknown, signal?: AbortSignal): boolean {
+  return signal?.aborted === true || (error instanceof DOMException && error.name === 'AbortError');
+}
 
-  const response = await fetch(url, {
+function isBarcode(query: string): boolean {
+  return /^\d{8,14}$/.test(query.replace(/\s+/g, ''));
+}
+
+function mergeProducts(primary: OFFProduct[], secondary: OFFProduct[]): OFFProduct[] {
+  const seen = new Set<string>();
+  const merged: OFFProduct[] = [];
+
+  for (const product of [...primary, ...secondary]) {
+    const key = `${product.id || ''}|${product.name.toLowerCase()}|${product.brand.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(product);
+    if (merged.length >= MAX_PRODUCTS) break;
+  }
+
+  return merged;
+}
+
+async function fetchSearchALiciousProducts(query: string, options?: SearchOptions): Promise<OFFProduct[]> {
+  const response = await fetch(buildSearchUrl(query), {
+    signal: options?.signal,
+  });
+
+  if (!response.ok) {
+    throw new Error('NETWORK_ERROR');
+  }
+
+  let data: { hits?: unknown[] };
+  try {
+    data = await response.json();
+  } catch {
+    return [];
+  }
+
+  if (!data || !Array.isArray(data.hits)) {
+    return [];
+  }
+
+  const mapped: OFFProduct[] = [];
+  for (const raw of data.hits) {
+    if (mapped.length >= MAX_PRODUCTS) break;
+    const product = mapProduct(raw);
+    if (product) {
+      mapped.push(product);
+    }
+  }
+
+  return mapped;
+}
+
+async function fetchLegacySearchProducts(query: string, options?: SearchOptions): Promise<OFFProduct[]> {
+  const response = await fetch(buildLegacySearchUrl(query), {
     signal: options?.signal,
   });
 
@@ -114,7 +208,6 @@ export async function searchProducts(
   try {
     data = await response.json();
   } catch {
-    // Malformed response treated as zero results
     return [];
   }
 
@@ -124,7 +217,7 @@ export async function searchProducts(
 
   const mapped: OFFProduct[] = [];
   for (const raw of data.products) {
-    if (mapped.length >= 20) break;
+    if (mapped.length >= MAX_PRODUCTS) break;
     const product = mapProduct(raw);
     if (product) {
       mapped.push(product);
@@ -132,4 +225,92 @@ export async function searchProducts(
   }
 
   return mapped;
+}
+
+async function fetchSearchProducts(query: string, options?: SearchOptions): Promise<OFFProduct[]> {
+  let searchError: unknown = null;
+
+  try {
+    const products = await fetchSearchALiciousProducts(query, options);
+    if (products.length > 0) {
+      return products;
+    }
+  } catch (error) {
+    if (isAbortError(error, options?.signal)) {
+      throw error;
+    }
+    searchError = error;
+  }
+
+  try {
+    return await fetchLegacySearchProducts(query, options);
+  } catch (error) {
+    if (isAbortError(error, options?.signal)) {
+      throw error;
+    }
+    throw searchError || error;
+  }
+}
+
+async function fetchBarcodeProduct(barcode: string, options?: SearchOptions): Promise<OFFProduct[]> {
+  const response = await fetch(buildProductUrl(barcode), {
+    signal: options?.signal,
+  });
+
+  if (!response.ok) {
+    throw new Error('NETWORK_ERROR');
+  }
+
+  let data: { status?: number; product?: OFFRawProduct };
+  try {
+    data = await response.json();
+  } catch {
+    return [];
+  }
+
+  if (data.status !== 1 || !data.product) {
+    return [];
+  }
+
+  const product = mapProduct(data.product);
+  return product ? [product] : [];
+}
+
+/**
+ * Searches local nutrition data plus Open Food Facts for products matching the query.
+ * - Uses Search-a-licious full-text search, then legacy keyword search as fallback
+ * - Uses API v2 product lookup for barcode-like queries
+ * - Filters out products missing required nutritional fields
+ * - Returns max 20 deduplicated products
+ * - Throws on network error only when no local fallback exists
+ */
+export async function searchProducts(
+  query: string,
+  options?: SearchOptions
+): Promise<OFFProduct[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) {
+    return [];
+  }
+
+  const localProducts = searchLocalProducts(trimmed, MAX_PRODUCTS);
+  const barcode = trimmed.replace(/\s+/g, '');
+
+  try {
+    const remoteProducts = isBarcode(barcode)
+      ? await fetchBarcodeProduct(barcode, options)
+      : await fetchSearchProducts(trimmed, options);
+
+    return isBarcode(barcode)
+      ? mergeProducts(remoteProducts, localProducts)
+      : mergeProducts(localProducts, remoteProducts);
+  } catch (error) {
+    if (isAbortError(error, options?.signal)) {
+      throw error;
+    }
+    if (localProducts.length > 0) {
+      return localProducts;
+    }
+    throw error;
+  }
 }

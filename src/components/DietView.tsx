@@ -24,6 +24,7 @@ import { generateFullDay } from '../ai/geminiClient';
 import { generateShoppingList } from '../utils/shoppingList';
 import { generateCookingGuide } from '../utils/cookingGuide';
 import { formatLong } from '../utils/dateUtils';
+import { macroTargetsFromProfile } from '../utils/macroTargets';
 import type { Meal, CookingGuideEntry } from '../types';
 
 type DayTab = 'posilki' | 'zakupy' | 'przepisy';
@@ -34,6 +35,7 @@ export function DietView() {
   const { dayPlans, selectedDate, clipboard, userProfile, geminiApiKey } = state;
 
   const hasApiKey = Boolean(geminiApiKey);
+  const macroTargets = useMemo(() => macroTargetsFromProfile(userProfile), [userProfile]);
 
   const currentDayPlan = dayPlans.find(dp => dp.date === selectedDate);
   const meals = currentDayPlan?.meals ?? [];
@@ -41,7 +43,7 @@ export function DietView() {
   // Day is "complete" when AI supplement shouldn't be offered anymore:
   // either 5 meals present OR total kcal is within ±2% of the daily target.
   const totalKcal = meals.reduce((sum, m) => sum + m.kcal, 0);
-  const kcalTarget = userProfile.dailyCalorieTarget;
+  const kcalTarget = macroTargets.kcal;
   const isWithinKcalRange = totalKcal >= kcalTarget * 0.98 && totalKcal <= kcalTarget * 1.02;
   const isDayComplete = meals.length >= 5 || (meals.length > 0 && isWithinKcalRange);
 
@@ -119,8 +121,8 @@ export function DietView() {
       <Calendar
         dayPlans={dayPlans}
         selectedDate={selectedDate}
-        calorieTarget={userProfile.dailyCalorieTarget}
-        proteinTarget={userProfile.dailyProteinTarget}
+        calorieTarget={macroTargets.kcal}
+        proteinTarget={macroTargets.protein}
         onSelectDate={(date) => dispatch({ type: 'SELECT_DATE', date })}
       />
 
@@ -225,8 +227,7 @@ export function DietView() {
           >
             <MacroRings
               meals={meals}
-              calorieTarget={userProfile.dailyCalorieTarget}
-              proteinTarget={userProfile.dailyProteinTarget}
+              macroTargets={macroTargets}
             />
 
             <div className="space-y-3">
