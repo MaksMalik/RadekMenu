@@ -1,4 +1,5 @@
 import type { Meal, MealType, UserProfile, DayPlan } from '../types';
+import { macroTargetsFromProfile } from '../utils/macroTargets';
 
 /**
  * Shared instruction enforcing a consistent ingredient format so the shopping
@@ -32,7 +33,7 @@ export function buildSwapPrompt(
     : '';
 
   const preferredSection = profile.preferredIngredients.length > 0
-    ? `\n\nLubiane składniki (TYLKO luźna inspiracja — NIE musisz ich używać, posiłek NIE musi ich zawierać; traktuj jako delikatną podpowiedź smaku):\n${profile.preferredIngredients.map(i => `- ${i}`).join('\n')}`
+    ? `\n\nLubiane składniki użytkownika (waga sugestii: 1%). To jest bardzo luźna inspiracja, NIE lista składników do użycia. Posiłek ma być sensowny kulinarnie nawet wtedy, gdy nie użyjesz żadnej rzeczy z tej listy. Nie łącz losowo kilku lubianych składników tylko dlatego, że są lubiane:\n${profile.preferredIngredients.map(i => `- ${i}`).join('\n')}`
     : '';
 
   const vegetableRuleSection = profile.vegetableRule
@@ -47,6 +48,8 @@ export function buildSwapPrompt(
   const sameDaySection = otherSameDay.length > 0
     ? `\n\nINNE posiłki zaplanowane na ten sam dzień (NIE proponuj dania, które się z nimi pokrywa lub powtarza — zadbaj o różnorodność dnia):\n${otherSameDay.map(t => `- ${t}`).join('\n')}`
     : '';
+
+  const culinarySenseSection = `\n\nSENS KULINARNY (obowiązkowe): wygeneruj normalny, jadalny posiłek, który mógłby realnie trafić do jadłospisu. Każde danie ma mieć spójną rolę składników: baza węglowodanowa / źródło białka / dodatki / sos lub przyprawy. Zakazane są przypadkowe zlepki przekąsek z mięsem lub wędliną, np. "popcorn z szynką", "chipsy z indykiem", "dżem z mięsem". Jeśli używasz przekąski typu popcorn/chipsy/orzeszki, traktuj ją jako samodzielną przekąskę albo mały dodatek, nie jako bazę obiadu/kolacji.`;
 
   // When the user leaves a comment we treat this as a targeted MODIFICATION of
   // the existing dish (keep everything, change only what they ask). Without a
@@ -68,7 +71,7 @@ Docelowe makroskładniki:
 - Kalorie: ${targetKcalMin}–${targetKcalMax} kcal (TWARDY LIMIT — obowiązkowy)
 - Białko: ${targetProteinMin}–${targetProteinMax} g
 - Węglowodany: ${targetCarbsMin}–${targetCarbsMax} g
-- Tłuszcze: ${targetFatsMin}–${targetFatsMax} g${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${commentSection}${sameDaySection}
+- Tłuszcze: ${targetFatsMin}–${targetFatsMax} g${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${commentSection}${sameDaySection}${culinarySenseSection}
 
 ${INGREDIENT_FORMAT_RULE}
 
@@ -98,15 +101,24 @@ export function buildFullDayPrompt(
   const kept = existingMeals ?? [];
   const keptKcal = kept.reduce((s, m) => s + m.kcal, 0);
   const keptProtein = kept.reduce((s, m) => s + m.protein, 0);
+  const keptCarbs = kept.reduce((s, m) => s + m.carbs, 0);
+  const keptFats = kept.reduce((s, m) => s + m.fats, 0);
+  const dailyTargets = macroTargetsFromProfile(profile);
 
   // Remaining targets after accounting for meals already on the day
-  const remKcal = Math.max(profile.dailyCalorieTarget - keptKcal, 0);
-  const remProtein = Math.max(profile.dailyProteinTarget - keptProtein, 0);
+  const remKcal = Math.max(dailyTargets.kcal - keptKcal, 0);
+  const remProtein = Math.max(dailyTargets.protein - keptProtein, 0);
+  const remCarbs = Math.max(dailyTargets.carbs - keptCarbs, 0);
+  const remFats = Math.max(dailyTargets.fats - keptFats, 0);
 
   const targetKcalMin = Math.round(remKcal * 0.98);
   const targetKcalMax = Math.round(remKcal * 1.02);
   const targetProteinMin = Math.max(remProtein - 8, 0);
   const targetProteinMax = remProtein + 8;
+  const targetCarbsMin = Math.max(remCarbs - 10, 0);
+  const targetCarbsMax = remCarbs + 10;
+  const targetFatsMin = Math.max(remFats - 6, 0);
+  const targetFatsMax = remFats + 6;
 
   // Which meal types are still missing
   const presentTypes = new Set(kept.map(m => m.type));
@@ -122,14 +134,14 @@ export function buildFullDayPrompt(
     : '';
 
   const preferredSection = profile.preferredIngredients.length > 0
-    ? `\n\nLubiane składniki (TYLKO luźna inspiracja — NIE musisz ich używać w każdym posiłku):\n${profile.preferredIngredients.map(i => `- ${i}`).join('\n')}`
+    ? `\n\nLubiane składniki użytkownika (waga sugestii: 1%). To NIE jest lista zakupów ani obowiązkowa baza. Maksymalnie jeden z generowanych posiłków może świadomie nawiązywać do tej listy; pozostałe mają wynikać z bilansu makro, sensu kulinarnego i różnorodności. Nie łącz kilku lubianych rzeczy w jednym daniu, jeśli nie tworzą normalnej potrawy:\n${profile.preferredIngredients.map(i => `- ${i}`).join('\n')}`
     : '';
 
   const vegetableRuleSection = profile.vegetableRule
     ? `\n\nZasada dotycząca warzyw: ${profile.vegetableRule}`
     : '';
 
-  const otherDaysTitles = (otherDays ?? []).flatMap(d => d.meals.map(m => m.title));
+  const otherDaysTitles = (otherDays ?? []).flatMap(d => d.meals.map(m => m.title)).slice(-35);
   const varietySection = otherDaysTitles.length > 0
     ? `\n\nUnikaj powtarzania tych dań z innych dni:\n${otherDaysTitles.join(', ')}`
     : '';
@@ -138,7 +150,9 @@ export function buildFullDayPrompt(
     ? `\n\nWAŻNE — te posiłki SĄ JUŻ zaplanowane na ten dzień (NIE generuj ich ponownie, uwzględnij ich makro w bilansie dnia):\n${kept.map(m => `- ${m.type}: ${m.title} (${m.kcal} kcal, ${m.protein}g białka)`).join('\n')}`
     : '';
 
-  const creativitySection = `\n\nKREATYWNOŚĆ I RÓŻNORODNOŚĆ (bardzo ważne): Bądź pomysłowy i za każdym razem proponuj INNE, urozmaicone dania — różne smaki, różne techniki przygotowania, inspiracje z różnych kuchni świata. Unikaj schematycznych, powtarzalnych zestawów. Zaskocz ciekawymi, ale realnymi i smacznymi propozycjami.`;
+  const creativitySection = `\n\nKREATYWNOŚĆ I RÓŻNORODNOŚĆ (bardzo ważne): proponuj inne, urozmaicone dania — różne źródła białka, różne bazy węglowodanowe, różne techniki przygotowania, różne profile smakowe. Nie powtarzaj tego samego schematu typu "kurczak + ziemniaki" w kilku wariantach.`;
+
+  const culinarySenseSection = `\n\nSENS KULINARNY (obowiązkowe): każdy posiłek musi być normalną, spójną potrawą. Zakazane są przypadkowe zlepki lubianych produktów, szczególnie przekąsek z mięsem/wędliną, np. "popcorn z szynką", "chipsy z indykiem", "dżem z mięsem". Przekąski typu popcorn/chipsy/orzeszki mogą być tylko logiczną przekąską albo małym dodatkiem, nigdy bazą obiadu/kolacji z mięsem.`;
 
   return `Jesteś polskim asystentem dietetycznym specjalizującym się w planowaniu posiłków dla rekompozycji sylwetki.
 
@@ -151,7 +165,9 @@ Profil użytkownika:
 
 Cele makro do UZUPEŁNIENIA przez generowane posiłki (po odjęciu już zaplanowanych):
 - Kalorie: ${targetKcalMin}–${targetKcalMax} kcal (TWARDY LIMIT ±2% — SUMA wygenerowanych posiłków MUSI zmieścić się w tym przedziale. Policz kalorie każdego posiłku i upewnij się, że łączna suma MIEŚCI SIĘ w ${targetKcalMin}–${targetKcalMax} kcal. Jeśli nie — skoryguj porcje.)
-- Białko: ${targetProteinMin}–${targetProteinMax} g${keptSection}${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${varietySection}${creativitySection}
+- Białko: ${targetProteinMin}–${targetProteinMax} g
+- Węglowodany: ${targetCarbsMin}–${targetCarbsMax} g
+- Tłuszcze: ${targetFatsMin}–${targetFatsMax} g${keptSection}${dislikesSection}${equipmentSection}${preferredSection}${vegetableRuleSection}${varietySection}${creativitySection}${culinarySenseSection}
 
 Wygeneruj posiłki typu: ${typesToGenerate.join(', ')}.
 

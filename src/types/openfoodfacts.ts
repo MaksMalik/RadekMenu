@@ -44,7 +44,7 @@ export interface ProductWithWeight {
 export interface IngredientEntry {
   name: string;
   weight: number; // grams
-  unit: WeightUnit;
+  unit?: WeightUnit;
 }
 
 /** Raw API response structure from Open Food Facts */
@@ -61,13 +61,19 @@ export interface OFFRawProduct {
   code?: string;
   product_name?: string;
   product_name_pl?: string;
-  brands?: string;
+  brands?: string | string[];
   serving_size?: string;
   serving_quantity?: number;
   nutriments?: {
-    'energy-kcal_100g'?: number;
-    proteins_100g?: number;
-    carbohydrates_100g?: number;
-    fat_100g?: number;
+    'energy-kcal_100g'?: number | string;
+    energy_kcal_100g?: number | string;
+    energy_100g?: number | string;
+    'energy-kj_100g'?: number | string;
+    proteins_100g?: number | string;
+    proteins?: number | string;
+    carbohydrates_100g?: number | string;
+    carbohydrates?: number | string;
+    fat_100g?: number | string;
+    fat?: number | string;
   };
 }

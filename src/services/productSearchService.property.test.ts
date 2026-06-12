@@ -71,13 +71,14 @@ describe('productSearchService property tests', () => {
     fc.assert(
       fc.property(searchQueryArb, (query) => {
         const url = buildSearchUrl(query);
+        const parsed = new URL(url);
 
-        expect(url).toContain('pl.openfoodfacts.org');
-        expect(url).toContain('action=process');
-        expect(url).toContain('json=true');
-        expect(url).toContain('page_size=20');
-        expect(url).toContain('sort_by=unique_scans_n');
-        expect(url).toContain(`search_terms=${encodeURIComponent(query)}`);
+        expect(parsed.hostname).toBe('search.openfoodfacts.org');
+        expect(parsed.pathname).toBe('/search');
+        expect(parsed.searchParams.get('q')).toBe(query);
+        expect(parsed.searchParams.get('langs')).toBe('pl,en');
+        expect(parsed.searchParams.get('page_size')).toBe('20');
+        expect(parsed.searchParams.get('fields')).toContain('nutriments');
       }),
       { numRuns: 200 }
     );

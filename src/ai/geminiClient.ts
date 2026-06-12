@@ -9,6 +9,7 @@ import {
   errorMessage,
   isRawLoggingAllowed,
   isWithinKcalBand,
+  isGeneratedMealReasonable,
   selectSwapResult,
   stripKey,
   validateMeal as validateMealStrict,
@@ -25,6 +26,10 @@ const MAX_TRANSIENT_ATTEMPTS = 3;
 const BASE_BACKOFF_MS = 500;
 /** Upper bound (ms) on the exponential transient backoff. */
 const MAX_BACKOFF_MS = 4000;
+/** Maximum attempts for a full-day plan when AI returns structurally valid but unusable meals. */
+const MAX_FULL_DAY_ATTEMPTS = 3;
+/** Maximum attempts for fridge suggestions when AI returns incoherent meal ideas. */
+const MAX_FRIDGE_ATTEMPTS = 2;
 
 /** Structured-output schema for a single meal. */
 const SINGLE_MEAL_SCHEMA = MEAL_SCHEMA;
@@ -86,6 +91,9 @@ export class GeminiClient {
             id: crypto.randomUUID(),
             eaten: false,
           };
+          if (!this.isReasonableGeneratedMeal(candidate, userProfile, sameDayTitles ?? [])) {
+            continue;
+          }
           candidates.push(candidate);
 
           // First in-band candidate accepted immediately, halting further requests.
@@ -121,17 +129,26 @@ export class GeminiClient {
     const prompt = buildFullDayPrompt(userProfile, otherDays, existingMeals);
 
     try {
-      const parsed = await this.callGemini(prompt, MEAL_ARRAY_SCHEMA);
+      const existingTitles = [
+        ...(existingMeals ?? []).map(meal => meal.title),
+        ...(otherDays ?? []).flatMap(day => day.meals.map(meal => meal.title)),
+      ];
 
-      // Every item must pass the STRICT validator before client-only id/eaten
-      // fields are assigned (Requirements 7.5, 5.2).
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => validateMealStrict(item))) {
-        const meals: Meal[] = parsed.map(parsedMeal => ({
-          ...parsedMeal,
-          id: crypto.randomUUID(),
-          eaten: false,
-        }));
-        return { success: true, data: meals };
+      for (let attempt = 0; attempt < MAX_FULL_DAY_ATTEMPTS; attempt++) {
+        const parsed = await this.callGemini(prompt, MEAL_ARRAY_SCHEMA);
+
+        // Every item must pass the STRICT validator before client-only id/eaten
+        // fields are assigned (Requirements 7.5, 5.2).
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => validateMealStrict(item))) {
+          const meals: Meal[] = parsed.map(parsedMeal => ({
+            ...parsedMeal,
+            id: crypto.randomUUID(),
+            eaten: false,
+          }));
+          if (this.areReasonableGeneratedMeals(meals, userProfile, existingTitles)) {
+            return { success: true, data: meals };
+          }
+        }
       }
 
       return { success: false, error: errorMessage('processing') };
@@ -152,17 +169,21 @@ export class GeminiClient {
     const prompt = buildFridgePrompt(ingredients, mealType, userProfile);
 
     try {
-      const parsed = await this.callGemini(prompt, MEAL_ARRAY_SCHEMA);
+      for (let attempt = 0; attempt < MAX_FRIDGE_ATTEMPTS; attempt++) {
+        const parsed = await this.callGemini(prompt, MEAL_ARRAY_SCHEMA);
 
-      // Every item must pass the STRICT validator before client-only id/eaten
-      // fields are assigned (Requirements 7.5, 5.2).
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => validateMealStrict(item))) {
-        const meals: Meal[] = parsed.map(parsedMeal => ({
-          ...parsedMeal,
-          id: crypto.randomUUID(),
-          eaten: false,
-        }));
-        return { success: true, data: meals };
+        // Every item must pass the STRICT validator before client-only id/eaten
+        // fields are assigned (Requirements 7.5, 5.2).
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => validateMealStrict(item))) {
+          const meals: Meal[] = parsed.map(parsedMeal => ({
+            ...parsedMeal,
+            id: crypto.randomUUID(),
+            eaten: false,
+          }));
+          if (this.areReasonableGeneratedMeals(meals, userProfile, [])) {
+            return { success: true, data: meals };
+          }
+        }
       }
 
       return { success: false, error: errorMessage('processing') };
@@ -208,6 +229,33 @@ export class GeminiClient {
   /** True when a usable (non-empty, non-whitespace) API key is configured. */
   private hasKey(): boolean {
     return this.apiKey.trim().length > 0;
+  }
+
+  private isReasonableGeneratedMeal(
+    meal: Meal,
+    userProfile: UserProfile,
+    existingTitles: string[]
+  ): boolean {
+    return isGeneratedMealReasonable(meal, {
+      preferredIngredients: userProfile.preferredIngredients,
+      existingTitles,
+      maxPreferredMatches: 2,
+    });
+  }
+
+  private areReasonableGeneratedMeals(
+    meals: Meal[],
+    userProfile: UserProfile,
+    existingTitles: string[]
+  ): boolean {
+    const seenTitles = [...existingTitles];
+    for (const meal of meals) {
+      if (!this.isReasonableGeneratedMeal(meal, userProfile, seenTitles)) {
+        return false;
+      }
+      seenTitles.push(meal.title);
+    }
+    return true;
   }
 
   /** Builds a key-free transport error for the given kind. */

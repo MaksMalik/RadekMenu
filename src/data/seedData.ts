@@ -7,6 +7,7 @@ const defaultUserProfile: UserProfile = {
   goal: 'recomposition',
   dailyCalorieTarget: 2200,
   dailyProteinTarget: 150,
+  macroPercentages: { protein: 27, carbs: 43, fats: 30 },
   mealsPerDay: 5,
   equipment: ['Airfryer', 'Opiekacz/Toster'],
   dislikedIngredients: [

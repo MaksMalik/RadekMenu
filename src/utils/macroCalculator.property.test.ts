@@ -9,7 +9,7 @@ const productWithWeightArb = fc.record({
   proteins_100g: fc.float({ min: 0, max: 2000, noNaN: true }),
   carbohydrates_100g: fc.float({ min: 0, max: 2000, noNaN: true }),
   fat_100g: fc.float({ min: 0, max: 2000, noNaN: true }),
-  weight: fc.float({ min: 0.1, max: 5000, noNaN: true }),
+  weight: fc.float({ min: Math.fround(0.1), max: 5000, noNaN: true }),
 });
 
 describe('macroCalculator property tests', () => {

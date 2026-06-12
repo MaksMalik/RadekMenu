@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { searchProducts, buildSearchUrl, mapProduct } from './productSearchService';
+import {
+  searchProducts,
+  buildSearchUrl,
+  buildLegacySearchUrl,
+  buildProductUrl,
+  mapProduct,
+} from './productSearchService';
 
 describe('productSearchService', () => {
   beforeEach(() => {
@@ -13,18 +19,34 @@ describe('productSearchService', () => {
   describe('buildSearchUrl', () => {
     it('constructs URL with correct domain and parameters', () => {
       const url = buildSearchUrl('jogurt');
-      expect(url).toContain('pl.openfoodfacts.org');
-      expect(url).toContain('search_terms=jogurt');
-      expect(url).toContain('action=process');
-      expect(url).toContain('json=true');
-      expect(url).toContain('page_size=20');
-      expect(url).toContain('sort_by=unique_scans_n');
-      expect(url).toContain('fields=');
+      const parsed = new URL(url);
+
+      expect(parsed.hostname).toBe('search.openfoodfacts.org');
+      expect(parsed.pathname).toBe('/search');
+      expect(parsed.searchParams.get('q')).toBe('jogurt');
+      expect(parsed.searchParams.get('langs')).toBe('pl,en');
+      expect(parsed.searchParams.get('page_size')).toBe('20');
+      expect(parsed.searchParams.get('fields')).toContain('nutriments');
     });
 
     it('encodes special characters in query', () => {
       const url = buildSearchUrl('mleko 3.2%');
-      expect(url).toContain('search_terms=mleko%203.2%25');
+      expect(new URL(url).searchParams.get('q')).toBe('mleko 3.2%');
+    });
+
+    it('constructs legacy keyword search URL for fallback', () => {
+      const url = buildLegacySearchUrl('jogurt');
+      expect(url).toContain('world.openfoodfacts.org');
+      expect(url).toContain('search_terms=jogurt');
+      expect(url).toContain('search_simple=1');
+      expect(url).toContain('json=1');
+      expect(url).toContain('sort_by=unique_scans_n');
+    });
+
+    it('constructs barcode product URL', () => {
+      const url = buildProductUrl('5901234123457');
+      expect(url).toContain('/api/v2/product/5901234123457');
+      expect(url).toContain('fields=');
     });
   });
 
@@ -115,13 +137,58 @@ describe('productSearchService', () => {
       const result = mapProduct(raw);
       expect(result!.name).toBe('Jogurt');
     });
+
+    it('maps Search-a-licious brands arrays', () => {
+      const raw = {
+        code: '4316268627979',
+        product_name: 'Skyr naturel',
+        brands: ['Skyr', 'Isey Skyr'],
+        nutriments: {
+          'energy-kcal_100g': 62,
+          proteins_100g: 11,
+          carbohydrates_100g: 4,
+          fat_100g: 0.2,
+        },
+      };
+
+      const result = mapProduct(raw);
+      expect(result).toMatchObject({
+        id: '4316268627979',
+        brand: 'Skyr, Isey Skyr',
+      });
+    });
+
+    it('parses string nutriments and converts energy from kJ when kcal is missing', () => {
+      const raw = {
+        code: '1',
+        product_name: 'Produkt',
+        nutriments: {
+          energy_100g: '418.4',
+          proteins_100g: '10',
+          carbohydrates_100g: '20',
+          fat_100g: '5',
+        },
+      };
+      const result = mapProduct(raw);
+      expect(result).not.toBeNull();
+      expect(result!.energy_kcal_100g).toBe(100);
+      expect(result!.proteins_100g).toBe(10);
+    });
   });
 
   describe('searchProducts', () => {
     it('handles network error with appropriate message', async () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
 
-      await expect(searchProducts('jogurt')).rejects.toThrow();
+      await expect(searchProducts('produkt-bez-lokalnego-trafienia')).rejects.toThrow();
+    });
+
+    it('falls back to local products when remote API fails', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+      const result = await searchProducts('skyr');
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].brand).toBe('Baza Smakołysz');
     });
 
     it('handles timeout via abort signal', async () => {
@@ -151,12 +218,11 @@ describe('productSearchService', () => {
     it('filters out products missing nutritional fields', async () => {
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue({
+        vi.fn().mockResolvedValueOnce({
           ok: true,
           json: () =>
             Promise.resolve({
-              count: 2,
-              products: [
+              hits: [
                 {
                   _id: '1',
                   product_name: 'Good',
@@ -181,6 +247,78 @@ describe('productSearchService', () => {
       const result = await searchProducts('test');
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Good');
+    });
+
+    it('fetches barcode endpoint for numeric barcode queries', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: 1,
+            product: {
+              code: '5901234123457',
+              product_name: 'Barcode product',
+              brands: 'Brand',
+              nutriments: {
+                'energy-kcal_100g': 100,
+                proteins_100g: 5,
+                carbohydrates_100g: 10,
+                fat_100g: 3,
+              },
+            },
+          }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await searchProducts('5901234123457');
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v2/product/5901234123457'),
+        expect.any(Object)
+      );
+      expect(result[0].name).toBe('Barcode product');
+    });
+
+    it('falls back to legacy search when Search-a-licious has no usable hits', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ hits: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              count: 1,
+              products: [
+                {
+                  _id: 'legacy-1',
+                  product_name: 'Legacy product',
+                  brands: 'Brand',
+                  nutriments: {
+                    'energy-kcal_100g': 100,
+                    proteins_100g: 5,
+                    carbohydrates_100g: 10,
+                    fat_100g: 3,
+                  },
+                },
+              ],
+            }),
+        });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await searchProducts('test');
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('search.openfoodfacts.org/search'),
+        expect.any(Object)
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('world.openfoodfacts.org/cgi/search.pl'),
+        expect.any(Object)
+      );
+      expect(result[0].name).toBe('Legacy product');
     });
 
     it('returns at most 20 products', async () => {

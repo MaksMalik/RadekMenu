@@ -246,6 +246,190 @@ export function selectSwapResult(candidates: Meal[], originalKcal: number): Swap
   return { kind: 'success', meal: best };
 }
 
+const SNACK_BASE_TERMS = [
+  'popcorn',
+  'chips',
+  'chipsy',
+  'chrupki',
+  'czekolada',
+  'zelki',
+  'żelki',
+];
+
+const MEAT_TERMS = [
+  'szynka',
+  'wedlina',
+  'wędlina',
+  'kurczak',
+  'indyk',
+  'wolowina',
+  'wołowina',
+  'wieprzowina',
+  'schab',
+  'mieso',
+  'mięso',
+  'boczek',
+  'salami',
+];
+
+const SWEET_SPREAD_TERMS = [
+  'dzem',
+  'dżem',
+  'konfitura',
+  'nutella',
+  'miod',
+  'miód',
+];
+
+const TITLE_STOP_WORDS = new Set([
+  'z',
+  'ze',
+  'i',
+  'w',
+  'we',
+  'na',
+  'do',
+  'dla',
+  'oraz',
+  'lekki',
+  'lekka',
+  'lekkie',
+  'chrupiace',
+  'chrupiące',
+  'kremowy',
+  'kremowa',
+]);
+
+function normalizeFoodText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function mealSearchText(meal: Pick<Meal, 'title' | 'ingredients'>): string {
+  return normalizeFoodText(`${meal.title} ${meal.ingredients.join(' ')}`);
+}
+
+function containsAny(text: string, terms: string[]): boolean {
+  return terms.some(term => text.includes(normalizeFoodText(term)));
+}
+
+function titleTokens(title: string): Set<string> {
+  return new Set(
+    normalizeFoodText(title)
+      .split(' ')
+      .filter(token => token.length >= 3 && !TITLE_STOP_WORDS.has(token))
+      .map(canonicalTitleToken)
+  );
+}
+
+function canonicalTitleToken(token: string): string {
+  const knownRoots: Array<[string, string]> = [
+    ['kurcz', 'kurczak'],
+    ['ziemni', 'ziemniak'],
+    ['indyk', 'indyk'],
+    ['indy', 'indyk'],
+    ['wolow', 'wolowina'],
+    ['mielon', 'mielone'],
+    ['szynk', 'szynka'],
+    ['makaron', 'makaron'],
+    ['jaj', 'jajko'],
+    ['skyr', 'skyr'],
+    ['wrap', 'wrap'],
+    ['tortill', 'tortilla'],
+  ];
+
+  const root = knownRoots.find(([prefix]) => token.startsWith(prefix));
+  if (root) return root[1];
+
+  return token.replace(/(ami|ach|ego|ymi|owy|owa|owe|em|ie|ej|a|u|y)$/u, '');
+}
+
+export function isSimilarMealTitle(a: string, b: string): boolean {
+  const aTokens = titleTokens(a);
+  const bTokens = titleTokens(b);
+  if (aTokens.size === 0 || bTokens.size === 0) return false;
+
+  let intersection = 0;
+  for (const token of aTokens) {
+    if (bTokens.has(token)) intersection++;
+  }
+
+  const smaller = Math.min(aTokens.size, bTokens.size);
+  const larger = Math.max(aTokens.size, bTokens.size);
+  return intersection / smaller >= 0.75 || intersection / larger >= 0.6;
+}
+
+export function hasIncoherentIngredientPair(meal: Pick<Meal, 'title' | 'ingredients' | 'type'>): boolean {
+  const text = mealSearchText(meal);
+  const hasSnackBase = containsAny(text, SNACK_BASE_TERMS);
+  const hasMeat = containsAny(text, MEAT_TERMS);
+  const hasSweetSpread = containsAny(text, SWEET_SPREAD_TERMS);
+
+  if (hasSnackBase && hasMeat) {
+    return true;
+  }
+
+  if (hasSweetSpread && hasMeat) {
+    return true;
+  }
+
+  if ((meal.type === 'Obiad' || meal.type === 'Kolacja') && hasSnackBase) {
+    const title = normalizeFoodText(meal.title);
+    return !title.includes('przekaska') && !title.includes('przekąska');
+  }
+
+  return false;
+}
+
+export function countPreferredIngredientMatches(
+  meal: Pick<Meal, 'title' | 'ingredients'>,
+  preferredIngredients: string[]
+): number {
+  const text = mealSearchText(meal);
+  const uniqueMatches = new Set<string>();
+
+  for (const ingredient of preferredIngredients) {
+    const normalized = normalizeFoodText(ingredient);
+    if (normalized.length >= 3 && text.includes(normalized)) {
+      uniqueMatches.add(normalized);
+    }
+  }
+
+  return uniqueMatches.size;
+}
+
+export interface GeneratedMealReasonOptions {
+  preferredIngredients?: string[];
+  existingTitles?: string[];
+  maxPreferredMatches?: number;
+}
+
+export function isGeneratedMealReasonable(
+  meal: Meal,
+  options: GeneratedMealReasonOptions = {}
+): boolean {
+  if (hasIncoherentIngredientPair(meal)) {
+    return false;
+  }
+
+  const preferredMatches = countPreferredIngredientMatches(
+    meal,
+    options.preferredIngredients ?? []
+  );
+  if (preferredMatches > (options.maxPreferredMatches ?? 2)) {
+    return false;
+  }
+
+  const existingTitles = options.existingTitles ?? [];
+  return !existingTitles.some(title => isSimilarMealTitle(meal.title, title));
+}
+
 /**
  * Maps an HTTP status code plus a response body (or thrown-error text) to a
  * `GeminiErrorKind` describing whether the failure is fatal or retryable and
