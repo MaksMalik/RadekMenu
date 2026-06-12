@@ -120,8 +120,8 @@ describe('Modal', () => {
         </Modal>
       )
 
-      // The backdrop is the motion.div with bg-black/30 class
-      const backdrop = container.querySelector('.bg-black\\/30')
+      // The backdrop is the motion.div with bg-black/45 class
+      const backdrop = container.querySelector('.bg-black\\/45')
       expect(backdrop).toBeInTheDocument()
 
       fireEvent.click(backdrop!)

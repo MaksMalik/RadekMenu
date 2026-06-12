@@ -98,11 +98,9 @@ export function useProductSearch(): UseProductSearchReturn {
           }
           // If aborted but NOT timeout, it was cancelled by new query — do nothing
         } else {
-          // Actual network/fetch error
-          const message = (err instanceof Error && err.message === 'NETWORK_ERROR')
-            ? 'Nie udało się połączyć. Sprawdź połączenie internetowe.'
-            : 'Wystąpił błąd podczas wyszukiwania. Spróbuj ponownie.';
-          setError(message);
+          // Actual network/fetch error - log it instead of setting a blocking UI error state
+          console.warn("Product search API failed:", err);
+          setError(null);
           setResults([]);
           setLoading(false);
         }

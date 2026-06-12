@@ -44,7 +44,7 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'foodus-logo.png'],
       workbox: {
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/assets\//, /^\/sw\.js$/, /^\/workbox-/],
+        navigateFallbackDenylist: [/^\/assets\//, /^\/sw\.js$/, /^\/workbox-/, /^\/api\//],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {

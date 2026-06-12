@@ -64,29 +64,31 @@ export function AddMealModal({ date, isOpen, onClose, defaultMealType }: AddMeal
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Dodaj posiłek">
+    <Modal isOpen={isOpen} onClose={onClose} title="Dodaj posiłek" size="lg">
       {/* Form */}
       <div className="space-y-4">
-        {/* Meal type — segmented control */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Typ posiłku</label>
-          <div className="flex flex-wrap gap-2">
-            {MEAL_TYPES.map((mt) => (
-              <button
-                key={mt}
-                type="button"
-                onClick={() => setType(mt)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  type === mt
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {mt}
-              </button>
-            ))}
+        {/* Meal type — segmented control — only show when no default is preselected */}
+        {!defaultMealType && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Typ posiłku</label>
+            <div className="flex flex-wrap gap-2">
+              {MEAL_TYPES.map((mt) => (
+                <button
+                  key={mt}
+                  type="button"
+                  onClick={() => setType(mt)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    type === mt
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {mt}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Title */}
         <div>

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { X, Loader2, MessageSquarePlus } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { MealType } from '../types';
 import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
 import { estimateMealFromDescription } from '../ai/geminiClient';
+import { Modal } from './Modal';
 
 interface AddFromDescriptionModalProps {
   date: string;
@@ -29,6 +29,7 @@ export function AddFromDescriptionModal({ date, isOpen, onClose, defaultMealType
       setSelectedType(defaultMealType || 'Obiad');
     }
   }, [isOpen, defaultMealType]);
+
   const [loading, setLoading] = useState(false);
 
   const canSubmit = description.trim() !== '' && !loading;
@@ -56,95 +57,74 @@ export function AddFromDescriptionModal({ date, isOpen, onClose, defaultMealType
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[70]"
+    <Modal isOpen={isOpen} onClose={onClose} title="Dodaj z opisu" size="lg">
+      {/* Form */}
+      <div className="space-y-4">
+        {/* Description textarea */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            Opisz co zjadłeś
+          </label>
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="np. kanapka z szynką i serem, jogurt naturalny z bananem, kawa z mlekiem..."
+            rows={4}
+            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-slate-800 dark:text-white resize-none"
           />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-0 flex items-center justify-center z-[75] p-4"
-          >
-            <div className="bg-white rounded-3xl shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600">
-                    <MessageSquarePlus size={20} />
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-800">Dodaj z opisu</h3>
-                </div>
-                <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100 transition-colors">
-                  <X size={18} className="text-slate-500" />
-                </button>
-              </div>
+        </div>
 
-              {/* Description textarea */}
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Opisz co zjadłeś
-              </label>
-              <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="np. kanapka z szynką i serem, jogurt naturalny z bananem, kawa z mlekiem..."
-                rows={4}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 resize-none mb-4"
-              />
-
-              {/* Meal type selector */}
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Typ posiłku</label>
-              <div className="flex flex-wrap gap-2 mb-5">
-                {MEAL_TYPES.map(type => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setSelectedType(type)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                      selectedType === type
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3">
+        {/* Meal type selector */}
+        {!defaultMealType && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Typ posiłku
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {MEAL_TYPES.map(type => (
                 <button
-                  onClick={onClose}
-                  disabled={loading}
-                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-medium text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  key={type}
+                  type="button"
+                  onClick={() => setSelectedType(type)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    selectedType === type
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
                 >
-                  Anuluj
+                  {type}
                 </button>
-                <button
-                  onClick={handleEstimate}
-                  disabled={!canSubmit}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-medium text-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Szacuję...
-                    </>
-                  ) : (
-                    'Oszacuj i dodaj'
-                  )}
-                </button>
-              </div>
+              ))}
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          </div>
+        )}
+      </div>
+
+      {/* Footer / Actions */}
+      <div className="flex items-center justify-end gap-3 mt-6">
+        <button
+          onClick={onClose}
+          disabled={loading}
+          className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Anuluj
+        </button>
+        <button
+          onClick={handleEstimate}
+          disabled={!canSubmit}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Szacuję...
+            </>
+          ) : (
+            'Oszacuj i dodaj'
+          )}
+        </button>
+      </div>
+    </Modal>
   );
 }
+
