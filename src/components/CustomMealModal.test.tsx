@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CustomMealModal } from './CustomMealModal';
 
+// Mock the useToast hook
+vi.mock('./Toast', () => ({
+  useToast: () => ({
+    showToast: vi.fn(),
+  }),
+}));
+
 // Mock the useUser hook
 const mockDispatch = vi.fn();
 vi.mock('../context/UserContext', () => ({

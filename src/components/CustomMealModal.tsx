@@ -4,6 +4,7 @@ import { Modal } from './Modal';
 import { ProductSearchInput } from './ProductSearchInput';
 import { SelectedProductRow } from './SelectedProductRow';
 import { useUser } from '../context/UserContext';
+import { useToast } from './Toast';
 import { buildMeal } from '../services/customMealBuilder';
 import { computeProductMacros, computeTotalMacros, roundMacros } from '../utils/macroCalculator';
 import type { MealType } from '../types';
@@ -20,10 +21,12 @@ interface CustomMealModalProps {
 
 export function CustomMealModal({ date, isOpen, onClose, defaultMealType }: CustomMealModalProps) {
   const { dispatch } = useUser();
+  const { showToast } = useToast();
 
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
   const [title, setTitle] = useState('');
   const [mealType, setMealType] = useState<MealType>(defaultMealType || 'Śniadanie');
+  const [activeTab, setActiveTab] = useState<'search' | 'selected'>('search');
 
   // Reset form when modal opens
   useEffect(() => {
@@ -31,6 +34,7 @@ export function CustomMealModal({ date, isOpen, onClose, defaultMealType }: Cust
       setSelectedProducts([]);
       setTitle('');
       setMealType(defaultMealType || 'Śniadanie');
+      setActiveTab('search');
     }
   }, [isOpen, defaultMealType]);
 
@@ -41,24 +45,24 @@ export function CustomMealModal({ date, isOpen, onClose, defaultMealType }: Cust
     }
   }, [selectedProducts, title]);
 
-  // Compute running total macros (convert ml to g assuming density ~1)
+  // Compute running total macros
   const totalMacros = useMemo(() => {
     const productsWithWeight = selectedProducts.map((sp) => ({
       energy_kcal_100g: sp.product.energy_kcal_100g,
       proteins_100g: sp.product.proteins_100g,
       carbohydrates_100g: sp.product.carbohydrates_100g,
       fat_100g: sp.product.fat_100g,
-      weight: sp.weight, // ml ≈ g for liquids
+      weight: sp.weight,
     }));
     return roundMacros(computeTotalMacros(productsWithWeight));
   }, [selectedProducts]);
 
   const handleSelectProduct = (product: OFFProduct) => {
-    // Default weight: use serving size if available, otherwise 100
     const defaultWeight = product.servingQuantityG && product.servingQuantityG > 0
       ? product.servingQuantityG
       : 100;
     setSelectedProducts((prev) => [...prev, { product, weight: defaultWeight, unit: 'g' }]);
+    showToast(`Dodano "${product.name}" do posiłku`, 'success');
   };
 
   const handleWeightChange = (index: number, weight: number) => {
@@ -97,17 +101,49 @@ export function CustomMealModal({ date, isOpen, onClose, defaultMealType }: Cust
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Stwórz posiłek z produktów" size="full">
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 max-h-[72vh] overflow-y-auto pr-1">
-        {/* Left Column: Search (Span 6 on md+) */}
-        <div className="md:col-span-6 space-y-4">
+      {/* Mobile Tab Selector */}
+      <div className="flex md:hidden border-b border-slate-100 dark:border-slate-800 mb-4 shrink-0">
+        <button
+          type="button"
+          onClick={() => setActiveTab('search')}
+          className={`flex-1 pb-2.5 text-center text-sm font-bold border-b-2 transition-colors ${
+            activeTab === 'search'
+              ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
+              : 'border-transparent text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          Szukaj produktów
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('selected')}
+          className={`flex-1 pb-2.5 text-center text-sm font-bold border-b-2 transition-colors relative ${
+            activeTab === 'selected'
+              ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
+              : 'border-transparent text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          Wybrane
+          {selectedProducts.length > 0 && (
+            <span className="ml-1.5 px-2 py-0.5 text-[10px] font-bold bg-emerald-600 text-white dark:bg-emerald-500 rounded-full">
+              {selectedProducts.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Grid Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 min-h-0">
+        {/* Left Column: Search */}
+        <div className={`md:col-span-6 space-y-4 ${activeTab === 'search' ? 'block' : 'hidden md:block'}`}>
           <div>
-            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Wyszukaj produkt w bazie</label>
+            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Wyszukaj produkt w bazie</label>
             <ProductSearchInput onSelect={handleSelectProduct} />
           </div>
         </div>
 
-        {/* Right Column: Selection Details (Span 6 on md+) */}
-        <div className="md:col-span-6 space-y-4 md:border-l md:border-slate-100 md:dark:border-slate-800 md:pl-6">
+        {/* Right Column: Selection Details */}
+        <div className={`md:col-span-6 space-y-4 md:border-l md:border-slate-100 md:dark:border-slate-800 md:pl-6 ${activeTab === 'selected' ? 'block' : 'hidden md:block'}`}>
           {/* Meal type selector — only show when no default is preselected */}
           {!defaultMealType && (
             <div>
@@ -149,7 +185,7 @@ export function CustomMealModal({ date, isOpen, onClose, defaultMealType }: Cust
               <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 Wybrane produkty ({selectedProducts.length})
               </label>
-              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+              <div className="space-y-2.5 max-h-[36vh] overflow-y-auto pr-1">
                 {selectedProducts.map((sp, index) => (
                   <SelectedProductRow
                     key={`${sp.product.id}-${index}`}
@@ -171,8 +207,10 @@ export function CustomMealModal({ date, isOpen, onClose, defaultMealType }: Cust
               </div>
             </div>
           ) : (
-            <div className="py-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-              <p className="text-xs text-slate-400 dark:text-slate-500 italic">Kliknij produkt po lewej stronie, aby go dodać</p>
+            <div className="py-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+              <p className="text-xs text-slate-400 dark:text-slate-500 italic">
+                {activeTab === 'selected' ? 'Wróć do wyszukiwania i kliknij produkt, aby go dodać' : 'Kliknij wyszukany produkt po lewej stronie, aby go dodać'}
+              </p>
             </div>
           )}
 
