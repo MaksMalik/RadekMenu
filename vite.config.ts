@@ -24,8 +24,8 @@ export default defineConfig({
                 return;
               }
 
-              const { scrapeFatSecret } = await import('./api/foods-search');
-              const products = await scrapeFatSecret(searchTerm);
+              const { scrapeFitatu } = await import('./api/foods-search');
+              const products = await scrapeFitatu(searchTerm);
               res.statusCode = 200;
               res.end(JSON.stringify(products));
             } catch (err) {

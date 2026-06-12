@@ -3,7 +3,7 @@ import { searchLocalProducts } from '../data/productDatabase';
 
 export interface SearchOptions {
   signal?: AbortSignal;
-  forceFatSecret?: boolean;
+  forceFitatu?: boolean;
 }
 
 const IS_TEST = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
@@ -230,7 +230,7 @@ async function fetchLegacySearchProducts(query: string, options?: SearchOptions)
   return mapped;
 }
 
-async function fetchFatSecretSearchProducts(query: string, options?: SearchOptions): Promise<OFFProduct[]> {
+async function fetchFitatuSearchProducts(query: string, options?: SearchOptions): Promise<OFFProduct[]> {
   try {
     const params = new URLSearchParams({ SearchTerm: query });
     const response = await fetch(`/api/foods-search?${params.toString()}`, {
@@ -248,16 +248,16 @@ async function fetchFatSecretSearchProducts(query: string, options?: SearchOptio
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw error;
     }
-    console.error("FatSecret query failed:", error);
+    console.error("Fitatu query failed:", error);
     return [];
   }
 }
 
 async function fetchSearchProducts(query: string, options?: SearchOptions): Promise<OFFProduct[]> {
-  let fatSecretProducts: OFFProduct[] = [];
-  if (!IS_TEST || options?.forceFatSecret) {
+  let fitatuProducts: OFFProduct[] = [];
+  if (!IS_TEST || options?.forceFitatu) {
     try {
-      fatSecretProducts = await fetchFatSecretSearchProducts(query, options);
+      fitatuProducts = await fetchFitatuSearchProducts(query, options);
     } catch (error) {
       if (isAbortError(error, options?.signal)) {
         throw error;
@@ -284,13 +284,13 @@ async function fetchSearchProducts(query: string, options?: SearchOptions): Prom
       if (isAbortError(error, options?.signal)) {
         throw error;
       }
-      if (fatSecretProducts.length === 0) {
+      if (fitatuProducts.length === 0) {
         throw searchError || error;
       }
     }
   }
 
-  return [...fatSecretProducts, ...offProducts];
+  return [...fitatuProducts, ...offProducts];
 }
 
 async function fetchBarcodeProduct(barcode: string, options?: SearchOptions): Promise<OFFProduct[]> {

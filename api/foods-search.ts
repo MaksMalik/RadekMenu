@@ -1,6 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'http';
+import fs from 'fs';
+import path from 'path';
 
-export interface ScrapedProduct {
+export interface FitatuProduct {
   id: string;
   name: string;
   brand: string;
@@ -12,136 +14,158 @@ export interface ScrapedProduct {
   servingQuantityG: number | null;
 }
 
-export async function scrapeFatSecret(searchTerm: string): Promise<ScrapedProduct[]> {
-  try {
-    const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+interface RawProductHeader {
+  id: string;
+  name: string;
+}
 
-    // 1. Fetch the demo page to get cookies and anti-forgery token
-    const res = await fetch("https://platform.fatsecret.com/api-demo", {
-      headers: { "user-agent": userAgent }
-    });
-    
-    if (!res.ok) {
-      console.warn("FatSecret demo page fetch failed with status", res.status);
-      return [];
-    }
+const HEADERS = {
+  'accept':          'application/json',
+  'api-key':         'FITATU-MOBILE-APP',
+  'api-secret':      'PYRXtfs88UDJMuCCrNpLV',
+  'app-os':          'FITATU-WEB',
+  'app-version':     '4.5.4',
+  'x-auth-token':    '1tY95KNZFN',
+  'content-type':    'application/json',
+  'user-agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/148',
+  'accept-language': 'pl-PL,pl;q=0.9,en-US;q=0.8'
+};
 
-    const html = await res.text();
-    const antiForgeryMatch = html.match(/name="FatSecret.AntiForgery"\s+type="hidden"\s+value="([^"]+)"/);
-    if (!antiForgeryMatch) {
-      console.warn("FatSecret AntiForgery token not found in HTML");
-      return [];
-    }
-    const token = antiForgeryMatch[1];
+// Temp cache file path. Vercel allows writing in /tmp.
+const CACHE_PATH = path.join('/tmp', 'fitatu_products_v1.json');
 
-    const cookies = res.headers.getSetCookie();
-    if (!cookies || cookies.length === 0) {
-      console.warn("No cookies returned from FatSecret demo page");
-      return [];
-    }
-    const cookieString = cookies.map(c => c.split(';')[0]).join('; ');
+// Module-scope variable for warm lambda cache
+let cachedHeaders: RawProductHeader[] | null = null;
 
-    // 2. Perform POST request for search
-    const searchRes = await fetch("https://platform.fatsecret.com/api-demo/foods-search", {
-      method: "POST",
-      headers: {
-        "accept": "*/*",
-        "accept-language": "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7",
-        "cache-control": "no-cache",
-        "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "pragma": "no-cache",
-        "cookie": cookieString,
-        "x-requested-with": "XMLHttpRequest",
-        "user-agent": userAgent,
-        "origin": "https://platform.fatsecret.com",
-        "referer": "https://platform.fatsecret.com/api-demo"
-      },
-      body: `MarketLocale=PL&LanguageLocale=pl&SearchTerm=${encodeURIComponent(searchTerm)}&Token=&FatSecret.AntiForgery=${encodeURIComponent(token)}`
-    });
+async function loadProductHeaders(): Promise<RawProductHeader[]> {
+  if (cachedHeaders && cachedHeaders.length > 0) {
+    return cachedHeaders;
+  }
 
-    if (!searchRes.ok) {
-      console.warn("FatSecret search request failed with status", searchRes.status);
-      return [];
-    }
-
-    const resultHtml = await searchRes.text();
-
-    if (resultHtml.includes("exceeded our request allowance") || resultHtml.includes("try again in 5 minutes")) {
-      console.warn("FatSecret search request rate-limited/allowance exceeded");
-      return [];
-    }
-
-    // 3. Parse HTML and extract products
-    const formRegex = /<form[^>]*action="\/api-demo\/foods-get\?foodId=(\d+)"[^>]*>([\s\S]*?)<\/form>/gi;
-    const products: ScrapedProduct[] = [];
-    let match;
-
-    while ((match = formRegex.exec(resultHtml)) !== null) {
-      const foodId = match[1];
-      const formContent = match[2];
-
-      const nameMatch = formContent.match(/<div class="food-name">([\s\S]*?)(?:&emsp;|<span|\/div>)/i);
-      let name = nameMatch ? nameMatch[1].trim() : '';
-      name = name.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-
-      const brandMatch = formContent.match(/<span class="fw-normal">\s*\(([^)]+)\)\s*<\/span>/i);
-      const brand = brandMatch ? brandMatch[1].trim() : '';
-
-      const descMatch = formContent.match(/<div class="food-description[^>]*>([\s\S]*?)<\/div>/i);
-      let desc = descMatch ? descMatch[1].trim() : '';
-      desc = desc.replace(/&#x9;/g, '').replace(/\s+/g, ' ');
-
-      const portionMatch = desc.match(/na\s+([^-]+)-\s+Kalorie/i);
-      const portion = portionMatch ? portionMatch[1].trim() : '';
-
-      const kcalMatch = desc.match(/Kalorie:\s*([\d.,]+)\s*kcal/i);
-      const kcal = kcalMatch ? parseFloat(kcalMatch[1].replace(',', '.')) : 0;
-
-      const fatMatch = desc.match(/Tłusz:\s*([\d.,]+)\s*g/i);
-      const fat = fatMatch ? parseFloat(fatMatch[1].replace(',', '.')) : 0;
-
-      const carbsMatch = desc.match(/Węglo:\s*([\d.,]+)\s*g/i);
-      const carbs = carbsMatch ? parseFloat(carbsMatch[1].replace(',', '.')) : 0;
-
-      const proteinMatch = desc.match(/Białk:\s*([\d.,]+)\s*g/i);
-      const protein = proteinMatch ? parseFloat(proteinMatch[1].replace(',', '.')) : 0;
-
-      // Extract serving quantity
-      const weightMatch = portion.match(/(\d+(?:[.,]\d+)?)\s*(g|ml)/i);
-      let weight = 100;
-      let servingQuantityG: number | null = null;
-      const servingSize: string | null = portion || null;
-
-      if (weightMatch) {
-        weight = parseFloat(weightMatch[1].replace(',', '.'));
-        servingQuantityG = weight;
-      } else {
-        const numMatch = portion.match(/(\d+(?:[.,]\d+)?)/);
-        if (numMatch) {
-          weight = parseFloat(numMatch[1].replace(',', '.'));
-          servingQuantityG = weight;
-        }
+  // Try reading from file system temp cache first
+  if (fs.existsSync(CACHE_PATH)) {
+    try {
+      const data = fs.readFileSync(CACHE_PATH, 'utf8');
+      cachedHeaders = JSON.parse(data);
+      if (cachedHeaders && cachedHeaders.length > 0) {
+        console.log(`Loaded ${cachedHeaders.length} product headers from /tmp cache.`);
+        return cachedHeaders;
       }
+    } catch (err) {
+      console.warn('Failed to read /tmp cache for Fitatu products:', err);
+    }
+  }
 
-      if (weight <= 0) weight = 100;
-      const factor = 100 / weight;
+  console.log('Fetching fresh product headers from Fitatu public API...');
+  const res = await fetch('https://pl-pl.fitatu.com/api/public/resources/products', {
+    headers: HEADERS,
+  });
 
-      products.push({
-        id: `fatsecret-${foodId}`,
-        name: name,
-        brand: brand || 'FatSecret',
-        energy_kcal_100g: Math.round(kcal * factor * 10) / 10,
-        proteins_100g: Math.round(protein * factor * 10) / 10,
-        carbohydrates_100g: Math.round(carbs * factor * 10) / 10,
-        fat_100g: Math.round(fat * factor * 10) / 10,
-        servingSize,
-        servingQuantityG,
-      });
+  if (!res.ok) {
+    throw new Error(`Fitatu products list returned HTTP ${res.status}`);
+  }
+
+  const json = await res.json();
+  if (Array.isArray(json)) {
+    cachedHeaders = json as RawProductHeader[];
+    try {
+      fs.writeFileSync(CACHE_PATH, JSON.stringify(cachedHeaders), 'utf8');
+      console.log(`Saved ${cachedHeaders.length} product headers to /tmp cache.`);
+    } catch (err) {
+      console.warn('Failed to save Fitatu products cache to file:', err);
+    }
+    return cachedHeaders;
+  }
+
+  throw new Error('Fitatu API returned invalid array structure');
+}
+
+async function fetchProductDetails(id: string): Promise<FitatuProduct | null> {
+  try {
+    const res = await fetch(`https://pl-pl.fitatu.com/api/public/resources/products/${id}`, {
+      headers: HEADERS,
+    });
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as any;
+    if (!data || typeof data !== 'object') return null;
+
+    let servingSize: string | null = null;
+    let servingQuantityG: number | null = null;
+
+    if (Array.isArray(data.measures)) {
+      // Find the first measure that is not just 'g' or 'ml'
+      const customMeasure = data.measures.find(
+        (m: any) => m && m.name && m.name.toLowerCase() !== 'g' && m.name.toLowerCase() !== 'ml' && m.weightPerUnit > 0
+      );
+      if (customMeasure) {
+        servingSize = `1 ${customMeasure.name} (${customMeasure.weightPerUnit}g)`;
+        servingQuantityG = customMeasure.weightPerUnit;
+      }
     }
 
-    return products;
-  } catch (error) {
-    console.error("FatSecret scraping error:", error);
+    return {
+      id: `fitatu-${id}`,
+      name: data.name || '',
+      brand: data.brand || data.manufacturer || 'Fitatu',
+      energy_kcal_100g: Number(data.energy) || 0,
+      proteins_100g: Number(data.protein) || 0,
+      carbohydrates_100g: Number(data.carbohydrate) || 0,
+      fat_100g: Number(data.fat) || 0,
+      servingSize,
+      servingQuantityG,
+    };
+  } catch (err) {
+    console.error(`Failed to fetch details for Fitatu product ${id}:`, err);
+    return null;
+  }
+}
+
+export async function scrapeFitatu(searchTerm: string): Promise<FitatuProduct[]> {
+  try {
+    const headers = await loadProductHeaders();
+    const queryLower = searchTerm.toLowerCase().trim();
+    const keywords = queryLower.split(/\s+/).filter(Boolean);
+
+    if (keywords.length === 0) return [];
+
+    // Filter by containing all keywords
+    const matches = headers.filter(p => {
+      if (!p || !p.name) return false;
+      const nameLower = p.name.toLowerCase();
+      return keywords.every(kw => nameLower.includes(kw));
+    });
+
+    // Rank matching results
+    matches.sort((a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+
+      // Exact matches first
+      const aExact = aName === queryLower;
+      const bExact = bName === queryLower;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+
+      // Matches starting at string start next
+      const aStart = aName.startsWith(queryLower);
+      const bStart = bName.startsWith(queryLower);
+      if (aStart && !bStart) return -1;
+      if (!aStart && bStart) return 1;
+
+      // Shorter names next
+      return aName.length - bName.length;
+    });
+
+    // Limit to top 15 matches to resolve details quickly in parallel
+    const topMatches = matches.slice(0, 15);
+
+    const detailsPromises = topMatches.map(m => fetchProductDetails(m.id));
+    const results = await Promise.all(detailsPromises);
+
+    return results.filter((p): p is FitatuProduct => p !== null);
+  } catch (err) {
+    console.error('Fitatu search failed:', err);
     return [];
   }
 }
@@ -168,7 +192,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   let searchTerm = urlObj.searchParams.get('SearchTerm') || urlObj.searchParams.get('q') || '';
 
   if (!searchTerm && req.method === 'POST') {
-    // Read body if POST
     const buffers: Buffer[] = [];
     for await (const chunk of req) {
       buffers.push(Buffer.from(chunk));
@@ -178,7 +201,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       const body = JSON.parse(bodyText);
       searchTerm = body.SearchTerm || body.q || '';
     } catch {
-      // Check as urlencoded
       const params = new URLSearchParams(bodyText);
       searchTerm = params.get('SearchTerm') || params.get('q') || '';
     }
@@ -191,7 +213,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  const products = await scrapeFatSecret(searchTerm);
+  const products = await scrapeFitatu(searchTerm);
   res.statusCode = 200;
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(products));
